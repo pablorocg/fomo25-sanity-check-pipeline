@@ -1,0 +1,12 @@
+# Apptainer Images Directory
+
+This directory contains the Apptainer (formerly Singularity) images of the trained models.
+
+## Purpose
+Store containerized versions of trained models to ensure consistent runtime environments across different systems.
+
+## Usage
+Images in this directory can be executed using Apptainer to run model inference or further training.
+
+## Note
+Do not directly modify the image files. To update a model, create a new image following the build procedures in the project documentation.

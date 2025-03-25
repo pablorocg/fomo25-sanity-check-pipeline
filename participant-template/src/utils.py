@@ -4,7 +4,6 @@ Utility functions for data loading, processing, and visualization with MONAI.
 
 import os
 
-import nibabel as nib
 import numpy as np
 import torch
 from monai.data import NiftiSaver

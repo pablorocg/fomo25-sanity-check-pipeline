@@ -2,10 +2,8 @@
 # Python.gitignore
 
 # apptainer-images
-*.sif
-old/
-docs/
-README.md
+apptainer-images/*.sif
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
