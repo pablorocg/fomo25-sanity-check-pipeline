@@ -1,0 +1,31 @@
+Bootstrap: docker
+From: pytorch/pytorch:2.0.0-cuda11.7-cudnn8-runtime
+
+%files
+    src/predict.py /app/predict.py
+    src/model.py /app/model.py
+    src/utils.py /app/utils.py
+    requirements.txt /app/requirements.txt
+    # Add other necessary files here
+
+%post
+    # Install necessary packages
+    apt-get update && apt-get install -y --no-install-recommends \
+        python3-pip \
+        python3-setuptools \
+        git \
+        wget \
+        && rm -rf /var/lib/apt/lists/*
+
+    # Install required Python packages from requirements.txt
+    pip3 install --no-cache-dir -r /app/requirements.txt
+
+    # Create directories
+    mkdir -p /input /output /model
+
+%environment
+    export PYTHONPATH=/app:$PYTHONPATH
+    export LC_ALL=C
+
+%runscript
+    python3 /app/predict.py "$@"
