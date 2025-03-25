@@ -2,12 +2,11 @@ Bootstrap: docker
 From: pytorch/pytorch:2.0.0-cuda11.7-cudnn8-runtime
 
 %files
-    src/predict.py /app/predict.py
-    src/model.py /app/model.py
-    src/utils.py /app/utils.py
-    requirements.txt /app/requirements.txt
-    # Also include init_model.py script
-    init_model.py /app/init_model.py
+    participant-template/src/predict.py /app/predict.py
+    participant-template/src/model.py /app/model.py
+    participant-template/src/utils.py /app/utils.py
+    participant-template/requirements.txt /app/requirements.txt
+    participant-template/init_model.py /app/init_model.py
 
 %post
     # Install necessary packages
