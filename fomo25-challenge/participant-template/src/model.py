@@ -42,6 +42,7 @@ def get_pretrained_model(pretrained_weights_path=None, device="cpu"):
             print("Using model with random initialization")
     else:
         print("No pretrained weights provided or file not found. Using model with random initialization.")
+        
     
     # Move model to device and set to evaluation mode
     model = model.to(device)
