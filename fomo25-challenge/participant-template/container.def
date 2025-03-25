@@ -6,7 +6,8 @@ From: pytorch/pytorch:2.0.0-cuda11.7-cudnn8-runtime
     src/model.py /app/model.py
     src/utils.py /app/utils.py
     requirements.txt /app/requirements.txt
-    # Add other necessary files here
+    # Also include init_model.py script
+    init_model.py /app/init_model.py
 
 %post
     # Install necessary packages
@@ -23,9 +24,20 @@ From: pytorch/pytorch:2.0.0-cuda11.7-cudnn8-runtime
     # Create directories
     mkdir -p /input /output /model
 
+    # Make prediction script executable
+    chmod +x /app/predict.py
+    chmod +x /app/init_model.py
+
+    # Initialize the model with random weights during container build
+    cd /app
+    python3 init_model.py
+    # Move the generated model weights to the correct location
+    mv /app/model/model_weights.pth /model/model_weights.pth
+
 %environment
     export PYTHONPATH=/app:$PYTHONPATH
     export LC_ALL=C
+    export MODEL_PATH=/model/model_weights.pth
 
 %runscript
-    python3 /app/predict.py "$@"
+    exec python3 /app/predict.py --input "$1" --output "$2" --model ${MODEL_PATH:-"/model/model_weights.pth"} --device ${3:-"cuda"}

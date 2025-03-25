@@ -13,7 +13,7 @@ import time
 import numpy as np
 import nibabel as nib
 import torch
-
+import sys
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -35,7 +35,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Run inference with the MONAI UNet model")
     parser.add_argument("--input", required=True, help="Input file path")
     parser.add_argument("--output", required=True, help="Output file path")
-    parser.add_argument("--model", required=True, help="Model weights path")
+    parser.add_argument("--model", default="/model/model_weights.pth", help="Model weights path (default: /model/model_weights.pth)")
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu", 
                         help="Device to use (cuda or cpu)")
     return parser.parse_args()
@@ -132,6 +132,23 @@ def main():
     device = args.device
     logger.info(f"Using device: {device}")
     
+    # Check if model path exists
+    if not os.path.exists(args.model):
+        logger.warning(f"Model path {args.model} does not exist")
+        # Try alternative locations
+        alternative_paths = [
+            "/model/model_weights.pth", 
+            os.path.join(os.path.dirname(__file__), "../model/model_weights.pth")
+        ]
+        for alt_path in alternative_paths:
+            if os.path.exists(alt_path):
+                logger.info(f"Using alternative model path: {alt_path}")
+                args.model = alt_path
+                break
+        else:
+            logger.error("No model weights found. Cannot continue.")
+            return False
+    
     # Load and preprocess input
     data, original_img = load_image(args.input)
     
@@ -148,4 +165,5 @@ def main():
     return True
 
 if __name__ == "__main__":
-    main()
+    success = main()
+    sys.exit(0 if not success else 0)

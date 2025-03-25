@@ -91,8 +91,8 @@ class ApptainerHandler:
             cmd.append("--nv")
         
         if binds:
-            for host_path, container_path in binds.items():
-                cmd.extend(["-B", f"{host_path}:{container_path}"])
+            for host_path, container_mount in binds.items():
+                cmd.extend(["-B", f"{host_path}:{container_mount}"])
         
         # Add the container path
         cmd.append(container_path)  
