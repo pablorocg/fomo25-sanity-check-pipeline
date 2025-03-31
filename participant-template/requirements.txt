@@ -1,8 +1,0 @@
-torch
-monai
-nibabel
-numpy
-scikit-image
-scipy
-matplotlib
-tqdm
