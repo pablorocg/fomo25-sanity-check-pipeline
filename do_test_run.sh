@@ -28,7 +28,6 @@ REBUILD=true
 GENERATE_DATA=true
 RUN_INFERENCE=true
 COMPUTE_METRICS=true
-CLEANUP=true
 GPU_CHECK=true
 RESULT_FILE="${SCRIPT_DIR}/validation_result.json"
 
@@ -41,7 +40,6 @@ while [[ "$#" -gt 0 ]]; do
     --no-generate) GENERATE_DATA=false ;;
     --no-inference) RUN_INFERENCE=false ;;
     --no-metrics) COMPUTE_METRICS=false ;;
-    --no-cleanup) CLEANUP=false ;;
     --no-gpu) GPU_CHECK=false ;;
     --result) RESULT_FILE="$2"; shift ;;
     *) echo "Unknown parameter passed: $1"; exit 1 ;;
@@ -56,9 +54,8 @@ CONTAINER_PATH="${SCRIPT_DIR}/apptainer_images/${CONTAINER_NAME}.sif"
 INPUT_DIR="${SCRIPT_DIR}/test/input"
 OUTPUT_DIR="${SCRIPT_DIR}/test/output"
 
-
 # Create required directories
-mkdir -p "$INPUT_DIR" "$OUTPUT_DIR" "$TEMP_DIR"
+mkdir -p "$INPUT_DIR" "$OUTPUT_DIR"
 
 # Initialize validation results
 container_exists=false
@@ -292,7 +289,6 @@ main() {
     }
   fi
   
-  
   # Run container inference
   if $RUN_INFERENCE; then
     print_status "$GREEN" "Running container inference"
@@ -337,8 +333,6 @@ main() {
     }
     print_status "$GREEN" "Metrics computed successfully"
   fi
-  
-  
   
   # Save validation results
   save_results
