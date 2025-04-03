@@ -2,14 +2,15 @@ Bootstrap: docker
 From: pytorch/pytorch:2.6.0-cuda12.6-cudnn9-runtime
 
 %files
-    src/pipeline.py /app/pipeline.py
-    src/predict.py /app/predict.py
-    src/requirements.txt /app/requirements.txt
+    src /app
 
 %post
     # Install dependencies
     python3 -m pip install --no-cache-dir -U pip setuptools wheel
     python3 -m pip install --no-cache-dir -r /app/requirements.txt
+    
+    # Install the package in development mode
+    cd /app && python3 -m pip install -e .
     
     # Create directories securely
     mkdir -p /input /output /results
@@ -23,6 +24,9 @@ From: pytorch/pytorch:2.6.0-cuda12.6-cudnn9-runtime
         
     # Make scripts executable
     chmod +x /app/*.py
+    
+    # Set PYTHONPATH to include app directory
+    echo 'export PYTHONPATH=/app:${PYTHONPATH:-}' >> /environment
 
 %environment
     export PYTHONPATH=/app:${PYTHONPATH:-}

@@ -1,5 +1,10 @@
 monai
+pytorch-lightning
+torch
+torchvision
 nibabel
 numpy
+pandas
 tqdm
 torchinfo
+scikit-image

@@ -55,7 +55,7 @@ CONTAINER_PATH="${SCRIPT_DIR}/apptainer_images/${CONTAINER_NAME}.sif"
 # Directories
 INPUT_DIR="${SCRIPT_DIR}/test/input"
 OUTPUT_DIR="${SCRIPT_DIR}/test/output"
-TEMP_DIR="${SCRIPT_DIR}/test/temp"
+
 
 # Create required directories
 mkdir -p "$INPUT_DIR" "$OUTPUT_DIR" "$TEMP_DIR"
@@ -292,8 +292,6 @@ main() {
     }
   fi
   
-  # Clear previous output
-  rm -rf "${OUTPUT_DIR}"/*
   
   # Run container inference
   if $RUN_INFERENCE; then
@@ -305,7 +303,6 @@ main() {
       --nv \
       --bind "$INPUT_DIR":/input:ro \
       --bind "$OUTPUT_DIR":/output \
-      --bind "$TEMP_DIR":/tmp \
       "${CONTAINER_PATH}" &
     
     inference_pid=$!
@@ -341,11 +338,7 @@ main() {
     print_status "$GREEN" "Metrics computed successfully"
   fi
   
-  # Cleanup
-  if $CLEANUP; then
-    print_status "$YELLOW" "Cleaning up temporary files"
-    rm -rf "${TEMP_DIR}"/*
-  fi
+  
   
   # Save validation results
   save_results
