@@ -2,3 +2,4 @@ numpy
 monai
 nibabel
 pandas
+scipy
