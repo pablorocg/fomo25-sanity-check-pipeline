@@ -1,59 +1,23 @@
-# FOMO25 Sanity Check Pipeline
+# FOMO25 Validation Pipeline
 
-A comprehensive validation framework for FOMO25 containerized models. This pipeline provides automated testing and validation of ML model containers, focused on medical imaging applications.
+This framework lets you validate any containerized code against a set of specific requirements using our validation script. The validation script checks that the code meets these conditions:
+  
+- The container file exists and can be executed using Apptainer (or Singularity).
+- Essential scripts (e.g. the prediction script at `/app/predict.py`) are present in the container.
+- Basic container commands run successfully.
+- GPU support is available (if applicable) or the script continues in CPU mode.
+- The container handles input via the `/input` mount point and writes outputs to `/output`.
+- Inference runs correctly, generating outputs that meet the expected quality and format.
+- Performance metrics are computed and saved as a JSON result.
 
-## Overview
+## Validation Overview
 
-The FOMO25 Sanity Check Pipeline validates containerized ML models by:
-
-- Verifying container structure and required scripts
-- Checking GPU support and functionality
-- Running inference with synthetic test data
-- Computing performance metrics
-- Validating output formats and quality
-
-## Requirements
-
-- Apptainer (formerly Singularity) 1.1.0+
-- Python 3.7+
-- NVIDIA GPU with drivers (optional)
-- Python packages:
-  - nibabel
-  - numpy
-  - pandas
-  - psutil
-
-## Directory Structure
-
-```
-FOMO25-SANITY-CHECK-PIPELINE/
-│
-├── apptainer_images/         # Container images
-│   └── fomo25-baseline-container.sif
-│
-├── src/                      # Core functionality
-│   ├── pipeline.py
-│   ├── predict.py
-│   ├── Apptainer.def
-│   └── requirements.txt
-│
-├── validation/               # Validation tools
-│   ├── command_runner.py
-│   ├── compute_metrics.py
-│   ├── container_handler.py
-│   ├── container_sanity_check.py
-│   ├── performance_monitor.py
-│   ├── test_data_generator.py
-│   └── validation_result.py
-│
-├── test/                     # Test data
-│   ├── input/
-│   └── output/
-│
-├── do_build.sh               # Build container script
-├── do_test_run.sh            # Test execution script
-└── README.md
-```
+The validation process performs several checks:
+- **Container Structure & Runtime:** Verifies container file existence, proper structure (e.g. `/app/predict.py`), and runtime availability.
+- **Basic Command Execution:** Tests that the container runs simple commands internally.
+- **GPU Support:** Optionally checks GPU availability and falls back gracefully if not present.
+- **Inference Execution:** Runs the supplied container using synthetic test data mounted from `/test/input` and confirms output generation in `/test/output`.
+- **Metrics Computation:** Computes and saves standard metrics (like dice, accuracy) in a JSON format.
 
 ## Quick Start
 
@@ -70,115 +34,22 @@ FOMO25-SANITY-CHECK-PIPELINE/
 
 3. Run the validation:
    ```bash
-   ./do_test_run.sh
+   ./do_test_run.sh [OPTIONS]
    ```
+   Options include skipping container rebuild, test data generation, inference or metrics computations. Use `--result your_result.json` to specify an output results file.
 
-## Usage
+## Usage Guidelines
 
-The main execution script is `do_test_run.sh`, which manages the entire validation process:
-
-```bash
-./do_test_run.sh [OPTIONS]
-```
-
-### Options
-
-| Option | Description |
-|--------|-------------|
-| `-n, --name CONTAINER_NAME` | Specify container name (default: fomo25-baseline-container) |
-| `-d, --def DEF_FILE` | Specify Apptainer definition file (default: Apptainer.def) |
-| `--no-rebuild` | Skip container rebuilding |
-| `--no-generate` | Skip test data generation |
-| `--no-inference` | Skip inference execution |
-| `--no-metrics` | Skip metrics computation |
-| `--no-cleanup` | Keep temporary files |
-| `--no-gpu` | Disable GPU checks and usage |
-| `--result RESULT_FILE` | Specify output JSON file for results |
-
-### Example
-
-Test with a custom container and skip rebuilding:
-
-```bash
-./do_test_run.sh --name custom-model-container --no-rebuild
-```
-
-## Validation Checks
-
-The pipeline performs the following validation checks:
-
-1. **Container Structure**
-   - Verifies container file exists and is accessible
-   - Checks that Apptainer/Singularity is installed
-   - Verifies `/app/predict.py` exists inside the container
-
-2. **GPU Support**
-   - Tests if the container can access GPU resources
-   - Verifies CUDA functionality via `nvidia-smi`
-
-3. **Inference Execution**
-   - Generates synthetic test data
-   - Mounts input/output directories
-   - Executes model prediction
-   - Monitors memory usage and execution time
-
-4. **Output Validation**
-   - Verifies output files are generated
-   - Validates output format and quality
-   - Computes standard metrics (for segmentation tasks)
-
-## Output
-
-The validation results are saved to a JSON file with the following structure:
-
-```json
-{
-  "status": "PASSED|FAILED",
-  "checks": {
-    "container_exists": true|false,
-    "container_runtime_available": true|false,
-    "can_run_basic_commands": true|false,
-    "required_files_present": true|false,
-    "gpu_supported": true|false,
-    "inference_ran": true|false,
-    "outputs_generated": true|false
-  },
-  "errors": [
-    "Error message 1",
-    "Error message 2"
-  ],
-  "warnings": [
-    "Warning message 1",
-    "Warning message 2"
-  ]
-}
-```
-
-## Container Requirements
-
-For a container to pass validation, it must:
-
-1. Have the core prediction script at `/app/predict.py`
-2. Accept input via the `/input` mount point
-3. Write output to the `/output` mount point
-4. Follow proper format for medical imaging data
+- Make sure your container has the core prediction script at `/app/predict.py`.
+- The container should accept inputs via the `/input` mount and write outputs to `/output`.
+- The validation script returns a JSON summary with status (`PASSED` or `FAILED`), along with detailed checks, errors, and warnings.
+- Follow the specific requirements described in this README to ensure your code is validated correctly.
 
 ## Troubleshooting
 
-### Common Issues
+- **Build Failures:** Verify the Apptainer/Singularity installation; check your definition file syntax.
+- **GPU Check Issues:** Confirm the host has an NVIDIA GPU and drivers configured, or use the `--no-gpu` flag to proceed.
+- **Missing Outputs:** Ensure that the input directory has valid test data and that your container writes files to `/output`.
 
-1. **Container build fails**
-   - Verify Apptainer is installed correctly
-   - Check for syntax errors in the definition file
-   - Ensure internet connectivity for base image pulling
-
-2. **GPU checks fail**
-   - Verify NVIDIA drivers are installed
-   - Check if CUDA is working properly on the host
-   - Ensure the container has the correct CUDA libraries
-
-3. **No output generated**
-   - Check container logs for errors
-   - Verify input directory contains valid test data
-   - Check container specification against requirements
+By following these guidelines, the validation script can be used to check any code against the cluster of specific container requirements.
 

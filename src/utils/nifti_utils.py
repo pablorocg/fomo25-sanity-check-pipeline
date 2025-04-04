@@ -14,8 +14,7 @@ logger = logging.getLogger(__name__)
 def save_nifti(
     prediction: Union[np.ndarray, torch.Tensor],
     output_path: str,
-    reference_path: Optional[str] = None,
-    threshold: Optional[float] = 0.5
+    reference_path: Optional[str] = None
 ) -> None:
     """
     Save a prediction as a NIfTI file.
@@ -24,18 +23,10 @@ def save_nifti(
         prediction: Numpy array or PyTorch tensor of predictions
         output_path: Path to save the output NIfTI file
         reference_path: Optional path to a reference NIfTI file for header info
-        threshold: Threshold for binarizing predictions (if None, saves as float32)
     """
     # Convert tensor to numpy if needed
     if isinstance(prediction, torch.Tensor):
         prediction = prediction.detach().cpu().numpy()
-    
-    # Remove any singleton dimensions (important for metrics computation)
-    prediction = np.squeeze(prediction)
-    
-    # Apply threshold if specified
-    if threshold is not None:
-        prediction = (prediction > threshold).astype(np.int8)
     
     # Ensure output directory exists
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
@@ -60,8 +51,7 @@ def save_nifti(
 def save_batch_nifti(
     predictions: Dict[str, Union[np.ndarray, torch.Tensor]],
     output_dir: str,
-    input_dir: Optional[str] = None,
-    threshold: Optional[float] = 0.5
+    input_dir: Optional[str] = None
 ) -> List[str]:
     """
     Save multiple predictions as NIfTI files.
@@ -70,7 +60,6 @@ def save_batch_nifti(
         predictions: Dictionary mapping filenames to prediction arrays
         output_dir: Directory to save the predictions
         input_dir: Optional input directory for reference files
-        threshold: Threshold for binarizing predictions
         
     Returns:
         List of saved file paths
@@ -89,12 +78,59 @@ def save_batch_nifti(
                 reference_path = None
         
         # Save the prediction
-        save_nifti(
-            prediction, 
-            output_path, 
-            reference_path, 
-            threshold=threshold
-        )
+        save_nifti(prediction, output_path, reference_path)
         saved_paths.append(output_path)
         
     return saved_paths
+
+def load_nifti(file_path: str) -> np.ndarray:
+    """
+    Load a NIfTI file as a numpy array.
+    
+    Args:
+        file_path: Path to the NIfTI file
+        
+    Returns:
+        Numpy array with the NIfTI data
+    """
+    img = nib.load(file_path)
+    return img.get_fdata()
+
+def get_nifti_files(directory: str) -> List[str]:
+    """
+    Get all NIfTI files in a directory.
+    
+    Args:
+        directory: Directory to search for NIfTI files
+        
+    Returns:
+        List of NIfTI file paths
+    """
+    if not os.path.isdir(directory):
+        raise ValueError(f"Not a directory: {directory}")
+        
+    return [
+        os.path.join(directory, f)
+        for f in os.listdir(directory)
+        if f.endswith((".nii", ".nii.gz"))
+    ]
+
+def get_nifti_metadata(file_path: str) -> Dict:
+    """
+    Get metadata from a NIfTI file.
+    
+    Args:
+        file_path: Path to the NIfTI file
+        
+    Returns:
+        Dictionary with metadata
+    """
+    img = nib.load(file_path)
+    return {
+        "shape": img.shape,
+        "affine": img.affine,
+        "header": {k: img.header[k] for k in img.header.keys()},
+        "dimensions": img.header.get_data_shape(),
+        "voxel_size": img.header.get_zooms(),
+        "data_type": img.header.get_data_dtype()
+    }

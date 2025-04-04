@@ -11,8 +11,8 @@ import pytorch_lightning as pl
 from pytorch_lightning.callbacks import ProgressBar
 
 # Fix imports to use absolute imports with app as root
-from models.medical_model import MedicalSegmentationModel
-from data.medical_data_module import MedicalImageDataModule
+from models.model import MedicalSegmentationModel
+from data.data_module import MedicalImageDataModule
 from utils.nifti_utils import save_batch_nifti
 
 
