@@ -90,7 +90,7 @@ class MedicalSegmentationModel(pl.LightningModule):
         self.log("val_loss", loss, prog_bar=True)
         return {"val_loss": loss}
     
-    def on_validation_epoch_end(self, outputs: List[Dict[str, torch.Tensor]]) -> None:
+    def on_validation_epoch_end(self) -> None:
         """End of validation epoch."""
         dice_score = self.dice_metric.aggregate().item()
         self.dice_metric.reset()
@@ -105,7 +105,7 @@ class MedicalSegmentationModel(pl.LightningModule):
         self.log("test_loss", loss)
         return {"test_loss": loss}
     
-    def on_test_epoch_end(self, outputs: List[Dict[str, torch.Tensor]]) -> None:
+    def on_test_epoch_end(self) -> None:
         """End of test epoch."""
         dice_score = self.dice_metric.aggregate().item()
         self.dice_metric.reset()

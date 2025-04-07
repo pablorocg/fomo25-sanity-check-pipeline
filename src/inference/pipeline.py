@@ -177,14 +177,14 @@ class LightningInferencePipeline:
         Returns:
             Initialized trainer
         """
-        accelerator = self.device if self.device == "cuda" else None
-        devices = 1 if self.device == "cuda" else None
+        accelerator = "auto"
+        devices = 1 
         
         self.logger.info(f"Creating trainer with accelerator={accelerator}, devices={devices}")
         
         return pl.Trainer(
             accelerator=accelerator,
-            devices=devices,
+            devices=1,
             logger=False,  # Disable logging for prediction
             enable_progress_bar=True,
             enable_model_summary=False,

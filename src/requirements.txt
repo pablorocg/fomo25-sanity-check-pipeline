@@ -1,5 +1,4 @@
 monai
-pytorch-lightning
 torch
 torchvision
 nibabel
@@ -8,3 +7,4 @@ pandas
 tqdm
 torchinfo
 scikit-image
+pytorch-lightning

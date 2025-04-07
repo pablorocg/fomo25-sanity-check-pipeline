@@ -23,8 +23,8 @@ The validation process performs several checks:
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/your-organization/FOMO25-SANITY-CHECK-PIPELINE.git
-   cd FOMO25-SANITY-CHECK-PIPELINE
+   git clone https://github.com/pablorocg/fomo25-sanity-check-pipeline.git
+   cd fomo25-sanity-check-pipeline
    ```
 
 2. Build the container:

@@ -3,6 +3,7 @@
 
 # apptainer-images
 *.sif
+*.tar
 command_runner.py
 container_handler.py
 container_sanity_check.py
