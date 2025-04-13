@@ -1,55 +1,164 @@
-# FOMO25 Validation Pipeline
+# FOMO25 Sanity Check Pipeline
 
-This framework lets you validate any containerized code against a set of specific requirements using our validation script. The validation script checks that the code meets these conditions:
-  
-- The container file exists and can be executed using Apptainer (or Singularity).
-- Essential scripts (e.g. the prediction script at `/app/predict.py`) are present in the container.
-- Basic container commands run successfully.
-- GPU support is available (if applicable) or the script continues in CPU mode.
-- The container handles input via the `/input` mount point and writes outputs to `/output`.
-- Inference runs correctly, generating outputs that meet the expected quality and format.
-- Performance metrics are computed and saved as a JSON result.
+A streamlined validation framework for neuroimaging models using Apptainer/Singularity containers. This pipeline helps you test your machine learning models against the FOMO25 Challenge requirements.
 
-## Validation Overview
+## 📋 Overview
 
-The validation process performs several checks:
-- **Container Structure & Runtime:** Verifies container file existence, proper structure (e.g. `/app/predict.py`), and runtime availability.
-- **Basic Command Execution:** Tests that the container runs simple commands internally.
-- **GPU Support:** Optionally checks GPU availability and falls back gracefully if not present.
-- **Inference Execution:** Runs the supplied container using synthetic test data mounted from `/test/input` and confirms output generation in `/test/output`.
-- **Metrics Computation:** Computes and saves standard metrics (like dice, accuracy) in a JSON format.
+This validation framework helps you:
+- Build Apptainer/Singularity containers directly (no Docker required)
+- Validate your model's structure and functionality
+- Test GPU compatibility and performance
+- Verify input/output interfaces
+- Compute evaluation metrics
 
-## Quick Start
+## ⚙️ Requirements
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/pablorocg/fomo25-sanity-check-pipeline.git
-   cd fomo25-sanity-check-pipeline
-   ```
+### System Prerequisites
+- Apptainer (preferred) or Singularity
+- Python 3.x
+- Sudo privileges for container building
+- NVIDIA GPU with drivers (optional, CPU fallback available)
 
-2. Build the container:
-   ```bash
-   ./do_build.sh
-   ```
+### Model Requirements
+Your neuroimaging model must:
+1. Include a `predict.py` script in the root directory
+2. Accept input from the `/input` directory (mounted read-only)
+3. Write outputs to the `/output` directory
+4. Process NIfTI format input files (`.nii` or `.nii.gz`)
+5. Handle both GPU and CPU execution
+6. List dependencies in `requirements.txt`
 
-3. Run the validation:
-   ```bash
-   ./do_test_run.sh [OPTIONS]
-   ```
-   Options include skipping container rebuild, test data generation, inference or metrics computations. Use `--result your_result.json` to specify an output results file.
+## 🚀 Quick Start
 
-## Usage Guidelines
+```bash
+# Build a container
+./container.sh -b -n my-container
 
-- Make sure your container has the core prediction script at `/app/predict.py`.
-- The container should accept inputs via the `/input` mount and write outputs to `/output`.
-- The validation script returns a JSON summary with status (`PASSED` or `FAILED`), along with detailed checks, errors, and warnings.
-- Follow the specific requirements described in this README to ensure your code is validated correctly.
+# Test container structure and functionality
+./container.sh -t -n my-container
 
-## Troubleshooting
+# Run inference with the container
+./container.sh -r -n my-container
 
-- **Build Failures:** Verify the Apptainer/Singularity installation; check your definition file syntax.
-- **GPU Check Issues:** Confirm the host has an NVIDIA GPU and drivers configured, or use the `--no-gpu` flag to proceed.
-- **Missing Outputs:** Ensure that the input directory has valid test data and that your container writes files to `/output`.
+# Run complete validation (all tests)
+./container.sh -v -n my-container
+```
 
-By following these guidelines, the validation script can be used to check any code against the cluster of specific container requirements.
+## 📚 Usage Options
+
+The `container.sh` script provides a unified interface for all operations:
+
+```
+Usage: ./container.sh [options]
+Options:
+  -n, --name NAME      Container name (default: fomo25-container)
+  -b, --build          Build the container
+  -t, --test           Test an existing container
+  -r, --run            Run inference on a container
+  -v, --validate       Run full validation (test+run+metrics)
+  -i, --input DIR      Input directory (default: ./test/input)
+  -o, --output DIR     Output directory (default: ./test/output)
+  -d, --def FILE       Definition file (default: ./Apptainer.def)
+  --no-gpu             Disable GPU support
+  --no-generate        Skip test data generation
+  --no-metrics         Skip metrics computation
+  --result FILE        Specify output JSON file for results
+  -h, --help           Show this help
+```
+
+### Examples:
+
+```bash
+# Build with a custom name
+./container.sh -b -n custom-model
+
+# Test with custom definition file
+./container.sh -t -n my-model -d custom.def
+
+# Run with specific input/output dirs
+./container.sh -r -n my-model -i /path/to/inputs -o /path/to/results
+
+# Validate without GPU support
+./container.sh -v -n my-model --no-gpu
+```
+
+## 🔍 Validation Process
+
+### Structure Tests
+The script verifies:
+- Container existence and accessibility
+- Presence of required files (`/app/predict.py`)
+- Basic command execution capability
+- GPU support detection
+
+### Runtime Tests
+For inference testing, the pipeline:
+1. Generates synthetic test data if needed
+2. Mounts input/output directories
+3. Runs prediction with performance monitoring
+4. Verifies output files were generated
+5. Computes evaluation metrics
+
+## 🛠️ Project Structure
+
+```
+.
+├── Apptainer.def          # Container definition
+├── container.sh           # Main script
+├── src/                   # Source code directory
+│   └── predict.py         # Required prediction script
+├── test/                  # Test directories
+│   ├── input/             # Input data
+│   └── output/            # Output data
+└── validation/            # Validation tools
+    ├── compute_metrics.py # Metrics computation
+    └── test_data_generator.py # Test data generation
+```
+
+## 📊 Output & Metrics
+
+After validation, the results are saved to a JSON file (default: `validation_result.json`). This includes:
+
+- Status: `PASSED` or `FAILED`
+- Detailed check results (container structure, GPU support, etc.)
+- Errors and warnings
+- Performance metrics (memory usage, execution time)
+
+If the `--no-metrics` flag is not used, detailed segmentation metrics are computed and saved to:
+- `test/output/results/metrics_results.json`
+- `test/output/results/metrics_results.csv`
+
+## 🔧 Troubleshooting
+
+### Container Build Issues
+- Verify Apptainer/Singularity is installed
+- Check your `requirements.txt` for compatibility issues
+- Ensure you have sudo privileges
+
+### Validation Failures
+- Container not found: Build it first with `-b` flag
+- predict.py not found: Ensure it exists at the root level of your source code
+- No output files: Make sure your model writes to the `/output` directory
+- GPU not detected: Install NVIDIA drivers or use `--no-gpu`
+
+## 📝 Note for Challenge Participants
+
+This validation pipeline ensures your model will function correctly in the FOMO25 Challenge environment. Pass all validation checks to confirm your submission will be evaluated properly.
+
+A successful validation confirms:
+1. Your container can be built
+2. Your model can run inference
+3. I/O paths are correctly configured
+4. Output format meets requirements
+
+## 🔗 Contributing
+
+To modify this pipeline:
+1. Edit the `container.sh` script for pipeline changes
+2. Modify `Apptainer.def` for container configuration
+3. Update validation scripts in the `validation/` directory
+
+## 📄 License
+
+This pipeline is provided for use in the FOMO25 Challenge.
 
