@@ -1,0 +1,24 @@
+# FOMO25 Container Sanity Check Configuration
+# -------------------------------------------
+
+# Validation settings
+container:
+  # Path of the container
+  path: "/home/prg/GitHub/fomo25-sanity-check-pipeline/apptainer-images/fomo25-container.sif" 
+  # ./apptainer/bin/apptainer Custom path to execute Apptainer/Singularity (e.g., "./apptainer/bin/apptainer")
+  command: "apptainer" 
+  
+
+# Resource settings
+# Set to false to disable GPU support
+use_gpu: true                    
+
+# Directory paths
+directories:
+  
+  # Input data directory
+  input: "test/input"
+  # Output directory for results            
+  output: "test/output"          
+
+

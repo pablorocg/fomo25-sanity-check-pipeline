@@ -37,8 +37,8 @@ From: pytorch/pytorch:2.6.0-cuda12.6-cudnn9-runtime
     # Make Python scripts executable
     find /app -name "*.py" -exec chmod +x {} \;
 
-%runscript
-    exec python /app/predict.py --input /input --output /output "$@"
+# %runscript
+#     exec python /app/predict.py --input /input --output /output "$@"
 
 %test
     python -c "import sys; print(f'Python {sys.version}')"

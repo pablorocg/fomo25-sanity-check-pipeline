@@ -1,6 +1,6 @@
 #!/bin/bash
-# All-in-one container management script for neuroimaging containers
-# Handles building, testing, and running containers with minimal configuration
+# FOMO25 Container Processor
+# Processes neuroimaging files using Apptainer/Singularity containers
 
 # Color codes for messages
 GREEN='\033[0;32m'
@@ -12,17 +12,17 @@ NC='\033[0m'
 # Get script directory
 SCRIPT_DIR=$(dirname "$(readlink -f "$0")")
 
-# Variables with defaults
+# Default values
 CONTAINER_NAME="fomo25-container"
-OPERATION="build"
+CONTAINER_PATH="${SCRIPT_DIR}/apptainer-images/${CONTAINER_NAME}.sif"
+OPERATION="validate" # test, run, validate
 USE_GPU=true
-IMAGES_DIR="${SCRIPT_DIR}/apptainer-images"
 INPUT_DIR="${SCRIPT_DIR}/test/input"
 OUTPUT_DIR="${SCRIPT_DIR}/test/output"
-DEF_FILE="${SCRIPT_DIR}/Apptainer.def"
-GENERATE_DATA=true
-COMPUTE_METRICS=true
+CONFIG_FILE="${SCRIPT_DIR}/config.yml"
 RESULT_FILE="${SCRIPT_DIR}/validation_result.json"
+CONTAINER_CMD="apptainer" # Default command
+CONTAINER_CMD_PATH="" # Custom command path
 
 # Validation status variables
 container_exists=false
@@ -43,44 +43,135 @@ msg() {
   echo -e "${color}${emoji} ${text}${NC}"
 }
 
+# Parse YAML configuration
+parse_yaml() {
+    local yaml_file=$1
+    
+    [ -r $yaml_file ] || return 1
+    
+    msg "$BLUE" "Reading configuration from $yaml_file" "📄"
+    
+    # Read the config file for container path
+    if grep -q "container:" "$yaml_file"; then
+        # Container path
+        local container_path=$(grep -A 5 "container:" "$yaml_file" | grep "path:" | head -n1 | sed -e "s/.*path: *//;s/['\"]//g" | tr -d ' ')
+        if [ ! -z "$container_path" ]; then
+            if [[ "$container_path" == ./* ]]; then
+                # Relative path
+                CONTAINER_PATH="${SCRIPT_DIR}/${container_path#./}"
+            else
+                # Absolute path or just filename
+                CONTAINER_PATH="$container_path"
+            fi
+            
+            # Extract container name from path if it's a .sif file
+            if [[ "$CONTAINER_PATH" == *.sif ]]; then
+                CONTAINER_NAME=$(basename "$CONTAINER_PATH" .sif)
+            fi
+            
+            msg "$BLUE" "Using container: $CONTAINER_PATH" "📦"
+        fi
+        
+        # Command path
+        local cmd_path=$(grep -A 5 "container:" "$yaml_file" | grep "command:" | head -n1 | sed -e "s/.*command: *//;s/['\"]//g" | tr -d ' ')
+        if [ ! -z "$cmd_path" ]; then
+            CONTAINER_CMD_PATH="$cmd_path"
+            msg "$BLUE" "Using custom command: $CONTAINER_CMD_PATH" "🔧"
+        fi
+    fi
+    
+    # Operation
+    local operation=$(grep "operation:" "$yaml_file" | head -n1 | sed -e "s/.*operation: *//;s/['\"]//g" | tr -d ' ')
+    if [ ! -z "$operation" ]; then
+        OPERATION="$operation"
+        msg "$BLUE" "Operation: $OPERATION" "🚀"
+    fi
+    
+    # GPU setting
+    local gpu_setting=$(grep "use_gpu:" "$yaml_file" | head -n1 | sed -e "s/.*use_gpu: *//;s/['\"]//g" | tr -d ' ')
+    if [ ! -z "$gpu_setting" ]; then
+        if [ "$gpu_setting" == "false" ]; then
+            USE_GPU=false
+            msg "$BLUE" "GPU support: disabled" "🔄"
+        fi
+    fi
+    
+    # Directories
+    if grep -q "directories:" "$yaml_file"; then
+        # Input directory
+        local input_dir=$(grep -A 5 "directories:" "$yaml_file" | grep "input:" | head -n1 | sed -e "s/.*input: *//;s/['\"]//g" | tr -d ' ')
+        if [ ! -z "$input_dir" ]; then
+            if [[ "$input_dir" == /* ]]; then
+                # Absolute path
+                INPUT_DIR="$input_dir"
+            else
+                # Relative path
+                INPUT_DIR="${SCRIPT_DIR}/${input_dir}"
+            fi
+            msg "$BLUE" "Input directory: $INPUT_DIR" "📂"
+        fi
+        
+        # Output directory
+        local output_dir=$(grep -A 5 "directories:" "$yaml_file" | grep "output:" | head -n1 | sed -e "s/.*output: *//;s/['\"]//g" | tr -d ' ')
+        if [ ! -z "$output_dir" ]; then
+            if [[ "$output_dir" == /* ]]; then
+                # Absolute path
+                OUTPUT_DIR="$output_dir"
+            else
+                # Relative path
+                OUTPUT_DIR="${SCRIPT_DIR}/${output_dir}"
+            fi
+            msg "$BLUE" "Output directory: $OUTPUT_DIR" "📁"
+        fi
+    fi
+}
+
 # Show help
 show_help() {
   echo "Usage: $0 [options]"
   echo "Options:"
-  echo "  -n, --name NAME      Container name (default: neuro-container)"
-  echo "  -b, --build          Build the container"
+  echo "  -n, --name NAME      Container name (default: fomo25-container)"
+  echo "  -p, --path PATH      Container path (overrides name)"
   echo "  -t, --test           Test an existing container"
   echo "  -r, --run            Run inference on a container"
   echo "  -v, --validate       Run full validation (test+run+metrics)"
   echo "  -i, --input DIR      Input directory (default: ./test/input)"
   echo "  -o, --output DIR     Output directory (default: ./test/output)"
-  echo "  -d, --def FILE       Definition file (default: ./Apptainer.def)"
+  echo "  -c, --config FILE    Config file path (default: ./config.yml)"
   echo "  --no-gpu             Disable GPU support"
-  echo "  --no-generate        Skip test data generation"
-  echo "  --no-metrics         Skip metrics computation"
   echo "  --result FILE        Specify output JSON file for results"
+  echo "  --cmd PATH           Custom Apptainer/Singularity command path"
   echo "  -h, --help           Show this help"
-  echo ""
-  echo "Examples:"
-  echo "  $0 -b -n mycontainer          # Build a container"
-  echo "  $0 -t -n mycontainer          # Test a container"
-  echo "  $0 -r -n mycontainer -i data  # Run inference with custom input directory"
-  echo "  $0 -v -n mycontainer          # Run full validation suite"
-  # All the process (Build, Test, Run, Metrics)
-  echo "  $0 -v -n mycontainer -i data  # Run full validation with custom input directory"
 }
 
 # Parse arguments
 parse_args() {
+  # First check if config file is specified
+  for ((i=1; i<=$#; i++)); do
+    if [[ "${!i}" == "-c" || "${!i}" == "--config" ]]; then
+      next=$((i+1))
+      if [[ $next -le $# ]]; then
+        CONFIG_FILE="${!next}"
+      fi
+    fi
+  done
+  
+  # Parse config file first (if exists)
+  if [ -f "$CONFIG_FILE" ]; then
+    parse_yaml "$CONFIG_FILE"
+  fi
+  
+  # Then parse command-line arguments (override config)
   while [[ $# -gt 0 ]]; do
     case $1 in
       -n|--name)
         CONTAINER_NAME="$2"
+        CONTAINER_PATH="${SCRIPT_DIR}/apptainer-images/${CONTAINER_NAME}.sif"
         shift 2
         ;;
-      -b|--build)
-        OPERATION="build"
-        shift
+      -p|--path)
+        CONTAINER_PATH="$2"
+        shift 2
         ;;
       -t|--test)
         OPERATION="test"
@@ -102,24 +193,20 @@ parse_args() {
         OUTPUT_DIR="$2"
         shift 2
         ;;
-      -d|--def)
-        DEF_FILE="$2"
+      -c|--config)
+        # Already handled above
         shift 2
         ;;
       --no-gpu)
         USE_GPU=false
         shift
         ;;
-      --no-generate)
-        GENERATE_DATA=false
-        shift
-        ;;
-      --no-metrics)
-        COMPUTE_METRICS=false
-        shift
-        ;;
       --result)
         RESULT_FILE="$2"
+        shift 2
+        ;;
+      --cmd)
+        CONTAINER_CMD_PATH="$2"
         shift 2
         ;;
       -h|--help)
@@ -133,25 +220,34 @@ parse_args() {
         ;;
     esac
   done
-
-  # Create output directory if it doesn't exist
-  mkdir -p "$IMAGES_DIR"
-  
-  # Set image path
-  IMAGE_PATH="${IMAGES_DIR}/${CONTAINER_NAME}.sif"
 }
 
 # Check environment
 check_env() {
   # Check for Apptainer/Singularity
-  CONTAINER_CMD=""
-  if command -v apptainer &>/dev/null; then
+  if [ ! -z "$CONTAINER_CMD_PATH" ]; then
+    # Custom command path specified
+    if [ -x "$CONTAINER_CMD_PATH" ]; then
+      CONTAINER_CMD="$CONTAINER_CMD_PATH"
+      msg "$GREEN" "Using custom container command: $CONTAINER_CMD" "✅"
+      container_runtime_available=true
+    elif command -v "$CONTAINER_CMD_PATH" &>/dev/null; then
+      CONTAINER_CMD="$CONTAINER_CMD_PATH"
+      msg "$GREEN" "Found custom container command: $CONTAINER_CMD" "✅"
+      container_runtime_available=true
+    else
+      msg "$RED" "Custom container command not found: $CONTAINER_CMD_PATH" "❌"
+      errors+=("Custom container command not found: $CONTAINER_CMD_PATH")
+      container_runtime_available=false
+      exit 1
+    fi
+  elif command -v apptainer &>/dev/null; then
     CONTAINER_CMD="apptainer"
-    msg "$BLUE" "Using Apptainer" "🐋"
+    msg "$GREEN" "Using Apptainer" "✅"
     container_runtime_available=true
   elif command -v singularity &>/dev/null; then
     CONTAINER_CMD="singularity"
-    msg "$BLUE" "Using Singularity" "🐋"
+    msg "$GREEN" "Using Singularity" "✅"
     container_runtime_available=true
     warnings+=("Using singularity instead of apptainer")
   else
@@ -161,57 +257,29 @@ check_env() {
     exit 1
   fi
   
-  # Check definition file exists if building
-  if [ "$OPERATION" = "build" ] && [ ! -f "$DEF_FILE" ]; then
-    msg "$RED" "Definition file not found: $DEF_FILE" "❌"
-    errors+=("Definition file not found: $DEF_FILE")
+  # Check container exists
+  if [ ! -f "$CONTAINER_PATH" ]; then
+    msg "$RED" "Container not found: $CONTAINER_PATH" "❌"
+    msg "$BLUE" "Run build.sh first to create the container" "💡"
+    errors+=("Container not found: $CONTAINER_PATH")
     exit 1
-  fi
-  
-  # Check container exists if testing/running/validating
-  if [ "$OPERATION" != "build" ]; then
-    if [ -f "$IMAGE_PATH" ]; then
-      msg "$GREEN" "Container found: $IMAGE_PATH" "✅"
-      container_exists=true
-    else
-      msg "$RED" "Container not found: $IMAGE_PATH" "❌"
-      msg "$BLUE" "Build it first with: $0 -b -n $CONTAINER_NAME" "💡"
-      errors+=("Container not found: $IMAGE_PATH")
-      exit 1
-    fi
+  else
+    msg "$GREEN" "Container found: $CONTAINER_PATH" "✅"
+    container_exists=true
   fi
   
   # Create directories
   mkdir -p "$INPUT_DIR" "$OUTPUT_DIR"
-}
-
-# Build container
-build_container() {
-  msg "$BLUE" "Building container: $IMAGE_PATH" "🔨"
-  
-  # Build with proper error handling
-  if sudo "$CONTAINER_CMD" build "$IMAGE_PATH" "$DEF_FILE"; then
-    if [ -f "$IMAGE_PATH" ]; then
-      msg "$GREEN" "Container built successfully" "✅"
-      return 0
-    else
-      msg "$RED" "Build failed: Container file not created" "❌"
-      errors+=("Build failed: Container file not created")
-      return 1
-    fi
-  else
-    msg "$RED" "Build failed" "❌"
-    errors+=("Container build failed")
-    return 1
-  fi
+  msg "$BLUE" "Using input directory: $INPUT_DIR" "📂"
+  msg "$BLUE" "Using output directory: $OUTPUT_DIR" "📁"
 }
 
 # Test container
 test_container() {
-  msg "$BLUE" "Testing container: $IMAGE_PATH" "🧪"
+  msg "$BLUE" "Testing container: $CONTAINER_PATH" "🧪"
   
   # Basic structure test
-  if ! "$CONTAINER_CMD" test "$IMAGE_PATH"; then
+  if ! "$CONTAINER_CMD" test "$CONTAINER_PATH"; then
     msg "$RED" "Container self-test failed" "❌"
     errors+=("Container self-test failed")
     return 1
@@ -219,7 +287,7 @@ test_container() {
   
   # Check for basic functionality
   msg "$BLUE" "Testing if container runs basic commands..." "🔍"
-  if "$CONTAINER_CMD" exec "$IMAGE_PATH" echo "Container is working" >/dev/null 2>&1; then
+  if "$CONTAINER_CMD" exec "$CONTAINER_PATH" echo "Container is working" >/dev/null 2>&1; then
     msg "$GREEN" "Container can run basic commands" "✅"
     can_run_basic_commands=true
   else
@@ -230,7 +298,7 @@ test_container() {
   
   # Check container structure
   msg "$BLUE" "Checking container file structure..." "🔍"
-  if "$CONTAINER_CMD" exec "$IMAGE_PATH" test -f /app/predict.py; then
+  if "$CONTAINER_CMD" exec "$CONTAINER_PATH" test -f /app/predict.py; then
     msg "$GREEN" "Found prediction script: /app/predict.py" "✅"
     required_files_present=true
   else
@@ -242,12 +310,12 @@ test_container() {
   # Check GPU support if enabled
   if $USE_GPU; then
     msg "$BLUE" "Checking GPU support..." "🔍"
-    if "$CONTAINER_CMD" exec --nv "$IMAGE_PATH" nvidia-smi &>/dev/null; then
+    if "$CONTAINER_CMD" exec --nv "$CONTAINER_PATH" nvidia-smi &>/dev/null; then
       msg "$GREEN" "GPU support verified with nvidia-smi" "✅"
       gpu_supported=true
     else
       # Try alternative method
-      local gpu_env=$("$CONTAINER_CMD" exec --nv "$IMAGE_PATH" bash -c 'python -c "import os; print(\"GPU_AVAILABLE=\" + str(\"NVIDIA_VISIBLE_DEVICES\" in os.environ))"' 2>/dev/null)
+      local gpu_env=$("$CONTAINER_CMD" exec --nv "$CONTAINER_PATH" bash -c 'python -c "import os; print(\"GPU_AVAILABLE=\" + str(\"NVIDIA_VISIBLE_DEVICES\" in os.environ))"' 2>/dev/null)
       
       if [[ "$gpu_env" == *"GPU_AVAILABLE=True"* ]]; then
         msg "$GREEN" "GPU support verified through environment variables" "✅"
@@ -264,34 +332,10 @@ test_container() {
   return 0
 }
 
-# Monitor memory and time
-monitor_performance() {
-  local start_time=$SECONDS
-  local max_memory=0
-  local pid=$1
-  
-  # Monitor memory usage
-  while kill -0 $pid 2>/dev/null; do
-    local current_memory=$(ps -o rss= -p $pid 2>/dev/null || echo "0")
-    if [[ $current_memory -gt $max_memory ]]; then
-      max_memory=$current_memory
-    fi
-    sleep 0.1
-  done
-  
-  local elapsed_time=$((SECONDS - start_time))
-  
-  msg "$BLUE" "Performance metrics:" "📊"
-  msg "$BLUE" "  Memory usage: $((max_memory / 1024)) MB" "💾"
-  msg "$BLUE" "  Execution time: ${elapsed_time} seconds" "⏱️"
-  
-  return 0
-}
-
 # Generate test data if needed
 generate_test_data() {
-  if $GENERATE_DATA && [ ! "$(ls -A "$INPUT_DIR" 2>/dev/null)" ]; then
-    msg "$YELLOW" "Generating synthetic test data" "🧪"
+  if [ ! "$(ls -A "$INPUT_DIR" 2>/dev/null)" ]; then
+    msg "$YELLOW" "Input directory is empty, generating synthetic test data" "🧪"
     if [ -f "${SCRIPT_DIR}/validation/test_data_generator.py" ]; then
       python3 "${SCRIPT_DIR}/validation/test_data_generator.py" "$INPUT_DIR" || {
         msg "$RED" "Failed to generate test data" "❌"
@@ -315,7 +359,7 @@ check_outputs() {
   local output_files=$(find "$OUTPUT_DIR" -type f | wc -l)
   
   if [[ $output_files -gt 0 ]]; then
-    msg "$GREEN" "Found $output_files output files" "📄"
+    msg "$GREEN" "Found $output_files output files" "✅"
     outputs_generated=true
     return 0
   else
@@ -328,10 +372,6 @@ check_outputs() {
 
 # Compute metrics
 compute_metrics() {
-  if ! $COMPUTE_METRICS; then
-    return 0
-  fi
-  
   msg "$BLUE" "Computing metrics" "📊"
   if [ -f "${SCRIPT_DIR}/validation/compute_metrics.py" ]; then
     python3 "${SCRIPT_DIR}/validation/compute_metrics.py" "$OUTPUT_DIR" "$INPUT_DIR" || {
@@ -340,22 +380,33 @@ compute_metrics() {
       return 1
     }
     msg "$GREEN" "Metrics computed successfully" "✅"
+    
+    # Check if metrics were generated
+    if [ -f "${OUTPUT_DIR}/results/metrics_results.csv" ]; then
+      msg "$GREEN" "Metrics saved to ${OUTPUT_DIR}/results/metrics_results.csv" "📈"
+    else
+      msg "$YELLOW" "Metrics computation completed but CSV not found" "⚠️"
+    fi
+    
+    return 0
   else
-    msg "$YELLOW" "Metrics script not found, skipping metrics computation" "⚠️"
-    warnings+=("Metrics script not found, skipping metrics computation")
+    msg "$RED" "Metrics script not found: ${SCRIPT_DIR}/validation/compute_metrics.py" "❌"
+    errors+=("Metrics script not found")
+    return 1
   fi
-  return 0
 }
 
-# Run inference
+## Run inference file by file
 run_inference() {
   # Generate test data if needed
   generate_test_data || return 1
   
   # Check if input directory has data
-  if [ ! "$(ls -A "$INPUT_DIR" 2>/dev/null)" ]; then
-    msg "$YELLOW" "Input directory is empty: $INPUT_DIR" "⚠️"
-    warnings+=("Input directory is empty")
+  local input_files=$(find "$INPUT_DIR" -type f -name "*.nii*" | wc -l)
+  if [ "$input_files" -eq 0 ]; then
+    msg "$RED" "No NIfTI files found in input directory: $INPUT_DIR" "❌"
+    errors+=("No NIfTI files found in input directory")
+    return 1
   fi
   
   # Clean output directory
@@ -368,33 +419,65 @@ run_inference() {
     GPU_FLAG="--nv"
   fi
   
-  # Run the container
-  msg "$BLUE" "Running inference" "🧠"
+  # Create instance name from container name
+  local INSTANCE_NAME="${CONTAINER_NAME}_instance"
   
-  # Start process in background to monitor performance
-  "$CONTAINER_CMD" run $GPU_FLAG \
+  # Run container in detached mode
+  msg "$BLUE" "Starting container instance: $INSTANCE_NAME" "🚀"
+  "$CONTAINER_CMD" instance start $GPU_FLAG \
     --bind "$INPUT_DIR:/input:ro" \
     --bind "$OUTPUT_DIR:/output" \
-    "$IMAGE_PATH" &
+    "$CONTAINER_PATH" "$INSTANCE_NAME" || {
+    msg "$RED" "Failed to start container instance" "❌"
+    errors+=("Failed to start container instance")
+    return 1
+  }
+  msg "$GREEN" "Container instance started successfully" "✅"
   
-  inference_pid=$!
+  # Run inference on each file
+  msg "$BLUE" "Processing $input_files NIfTI files from $INPUT_DIR" "🧠"
+  local count=0
+  local success=0
   
-  # Monitor performance
-  monitor_performance $inference_pid
+  for input_file in "$INPUT_DIR"/*.nii*; do
+    if [ -f "$input_file" ]; then
+      count=$((count+1))
+      filename=$(basename "$input_file")
+      
+      msg "$BLUE" "[$count/$input_files] Processing $filename..." "⏳"
+      
+      # Run inference on this file using the instance
+      "$CONTAINER_CMD" exec instance://"$INSTANCE_NAME" \
+        python /app/predict.py --input "/input/$filename" --output "/output"
+      
+      if [ $? -eq 0 ]; then
+        success=$((success+1))
+        msg "$GREEN" "Successfully processed $filename" "✅"
+      else
+        msg "$RED" "Failed to process $filename" "❌"
+        errors+=("Failed to process $filename")
+      fi
+    fi
+  done
   
-  # Wait for completion
-  wait $inference_pid
-  inference_exit_code=$?
+  # Stop the instance
+  msg "$BLUE" "Stopping container instance" "🛑"
+  "$CONTAINER_CMD" instance stop "$INSTANCE_NAME" || {
+    msg "$YELLOW" "Warning: Failed to stop container instance" "⚠️"
+    warnings+=("Failed to stop container instance")
+  }
   
-  if [[ $inference_exit_code -eq 0 ]]; then
-    msg "$GREEN" "Inference completed successfully" "✅"
+  msg "$BLUE" "Inference complete: $success/$count files processed successfully" "🏁"
+  
+  if [ $success -gt 0 ]; then
     inference_ran=true
     check_outputs
+    # Always compute metrics
     compute_metrics
     return 0
   else
-    msg "$RED" "Inference failed with exit code $inference_exit_code" "❌"
-    errors+=("Inference failed with exit code $inference_exit_code")
+    msg "$RED" "No files were processed successfully" "❌"
+    errors+=("No files were processed successfully")
     inference_ran=false
     return 1
   fi
@@ -487,7 +570,9 @@ run_validation() {
 
 # Main function
 main() {
-  # Parse arguments
+  msg "$BLUE" "FOMO25 Container Validation Tool" "🚀"
+  
+  # Parse arguments and config
   parse_args "$@"
   
   # Check environment
@@ -495,9 +580,6 @@ main() {
   
   # Perform requested operation
   case $OPERATION in
-    build)
-      build_container
-      ;;
     test)
       test_container
       save_results

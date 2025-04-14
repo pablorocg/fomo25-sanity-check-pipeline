@@ -1,0 +1,9 @@
+1. Read configuration from config.yml (if not provided, use the cml or the default values)
+2. Check if apptainer/singularity is installed (first check for custom installationo path, then apptainer if no custom path)
+3. Run the container (shell) using gpu if specified in config file (also mount /input and /output dirs)(without internet connection) (apptainer_command instance <container_name> <tag>)
+4. Check that the command line interface for inference is correct (python /app/predict.py --input </path/to/file.nii.gz> --output <path/to/file.nii.gz>)
+4. Generate fake sinthetic nii.gz data in the /input directory
+4. Iterate over the /input and do inference
+    for file in /input dir
+        apptainer (or eq command) exec ..... (and save the result in /output) python /app/predict.py --input </path/to/file.nii.gz> --output <path/to/file.nii.gz>
+5. When inference has finished, compute the metrics outside the container and save them in a csv file. 
