@@ -448,7 +448,7 @@ run_inference() {
       
       # Run inference on this file using the instance
       "$CONTAINER_CMD" exec instance://"$INSTANCE_NAME" \
-        python /app/predict.py --input "/input/$filename" --output "/output"
+        python /app/predict.py --input "/input/$filename" --output "/output/$filename"
       
       if [ $? -eq 0 ]; then
         success=$((success+1))
