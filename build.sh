@@ -199,7 +199,7 @@ build_container() {
   fi
   
   # Build with proper error handling
-  if sudo "$CONTAINER_CMD" build "$CONTAINER_PATH" "$DEF_FILE"; then
+  if "$CONTAINER_CMD" build "$CONTAINER_PATH" "$DEF_FILE"; then
     if [ -f "$CONTAINER_PATH" ]; then
       msg "$GREEN" "Container built successfully" "✅"
       msg "$BLUE" "Container location: $CONTAINER_PATH" "📦"
