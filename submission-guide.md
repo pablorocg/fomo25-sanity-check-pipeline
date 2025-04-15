@@ -244,26 +244,60 @@ if __name__ == "__main__":
 
 ## Validating Your Submission
 
-We provide a validation script to ensure your container meets all requirements before submission. This script checks:
+The FOMO25 Challenge provides a comprehensive validation framework to ensure your container meets all requirements before submission. This framework tests various aspects of your container, including:
 
-1. Container existence and accessibility
+1. Container structure and accessibility
 2. Presence of required files (`/app/predict.py`)
 3. Basic command execution capability
-4. GPU support (if available)
+4. GPU support detection
 5. Correct handling of input/output paths
-6. Successful inference on test data
+6. End-to-end inference testing
+7. Performance metrics computation
 
-### Running the Validation Script using Configuration File
+### Setting Up the Validation Framework
+
+To properly validate your submission, you need to set up the complete validation framework:
 
 ```bash
-# Download the validation script
-wget https://github.com/pablorocg/fomo25-sanity-check-pipeline/blob/main/container.sh
+# Clone the validation repository
+git clone https://github.com/pablorocg/fomo25-sanity-check-pipeline.git
+cd fomo25-sanity-check-pipeline
 
-# Make it executable
-chmod +x container.sh
+# Install required dependencies
+pip install -r requirements_.txt  # Note the underscore in the filename
 ```
 
-For easier validation, create a `config.yml` file:
+Alternatively, if you prefer not to clone the entire repository, you can download just the necessary files:
+
+```bash
+# Create directories
+mkdir -p fomo25-validation/validation
+
+# Download main validation script
+wget -O fomo25-validation/container.sh https://raw.githubusercontent.com/pablorocg/fomo25-sanity-check-pipeline/main/container.sh
+chmod +x fomo25-validation/container.sh
+
+# Download validation scripts
+wget -O fomo25-validation/validation/compute_metrics.py https://raw.githubusercontent.com/pablorocg/fomo25-sanity-check-pipeline/main/validation/compute_metrics.py
+wget -O fomo25-validation/validation/test_data_generator.py https://raw.githubusercontent.com/pablorocg/fomo25-sanity-check-pipeline/main/validation/test_data_generator.py
+chmod +x fomo25-validation/validation/*.py
+
+# Download requirements
+wget -O fomo25-validation/requirements_.txt https://raw.githubusercontent.com/pablorocg/fomo25-sanity-check-pipeline/main/requirements_.txt
+
+# Install dependencies
+pip install -r fomo25-validation/requirements_.txt
+
+# Create test directories
+mkdir -p fomo25-validation/test/input fomo25-validation/test/output
+
+# Navigate to the validation directory
+cd fomo25-validation
+```
+
+### Creating a Configuration File
+
+For easier validation, create a `config.yml` file in the validation directory:
 
 ```yaml
 # FOMO25 Container Configuration
@@ -280,11 +314,70 @@ directories:
   output: "test/output"            # Path for output
 ```
 
-Then run validation with:
+### Running the Validation
+
+With the framework set up, you can run the validation:
 
 ```bash
+# For full validation (test structure, run inference, compute metrics)
+./container.sh -v -n your-model
+
+# Using a configuration file
 ./container.sh --config config.yml
+
+# Test only container structure
+./container.sh -t -n your-model
+
+# Run only inference
+./container.sh -r -n your-model
 ```
+
+### Understanding the Validation Process
+
+The validation framework performs these steps:
+
+1. **Structure Tests**:
+   - Verifies container exists and is accessible
+   - Checks for required files like `/app/predict.py`
+   - Tests basic command execution
+   - Detects GPU support
+
+2. **Runtime Tests**:
+   - Generates synthetic test data if none is provided (using `validation/test_data_generator.py`)
+   - Mounts input/output directories to your container
+   - Runs your prediction script with performance monitoring
+   - Verifies output files are generated
+
+3. **Metrics Computation**:
+   - Computes standard segmentation metrics using `validation/compute_metrics.py`
+   - Saves results to JSON and CSV files in the output directory
+
+### Validation Results
+
+After running validation, results are saved to a JSON file (default: `validation_result.json`). This includes:
+
+- Overall status: `PASSED` or `FAILED`
+- Detailed check results
+- Errors and warnings
+- Performance metrics
+
+Additionally, if your model generates valid segmentation outputs, detailed metrics will be available in:
+- `test/output/results/metrics_results.json`
+- `test/output/results/metrics_results.csv`
+
+These metrics help you assess your model's performance before final submission.
+
+### Troubleshooting Validation Issues
+
+If validation fails, check these common problems:
+
+- **Missing Dependencies**: Ensure all dependencies in `requirements_.txt` are installed
+- **Missing Validation Scripts**: Verify you have all required files in the validation directory
+- **Container Not Found**: Check the path to your .sif file in the config.yml
+- **No Test Data**: If your test/input directory is empty, the validation will attempt to generate test data
+- **predict.py Not Found**: Ensure your container has the script at `/app/predict.py`
+- **No Output Files**: Check that your model writes to the `/output` directory
+- **Permission Issues**: Ensure the validation scripts have execution permissions (`chmod +x`)
 
 ## Common Issues and Troubleshooting
 

@@ -12,7 +12,7 @@ validation_result.py
 validation_result.json
 apptainer-images
 test
-info.txt
+
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
