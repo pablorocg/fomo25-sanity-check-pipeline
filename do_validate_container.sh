@@ -15,11 +15,11 @@ SCRIPT_DIR=$(dirname "$(readlink -f "$0")")
 # Default values
 CONTAINER_NAME="fomo25-container"
 CONTAINER_PATH="${SCRIPT_DIR}/apptainer-images/${CONTAINER_NAME}.sif"
-OPERATION="validate" # test, run, validate
+# Removed OPERATION variable
 USE_GPU=true
 INPUT_DIR="${SCRIPT_DIR}/test/input"
 OUTPUT_DIR="${SCRIPT_DIR}/test/output"
-CONFIG_FILE="${SCRIPT_DIR}/config.yml"
+CONFIG_FILE="${SCRIPT_DIR}/container_config.yml"
 RESULT_FILE="${SCRIPT_DIR}/validation_result.json"
 CONTAINER_CMD="apptainer" # Default command
 CONTAINER_CMD_PATH="" # Custom command path
@@ -53,53 +53,47 @@ parse_yaml() {
     
     # Read the config file for container path
     if grep -q "container:" "$yaml_file"; then
-        # Container path
-        local container_path=$(grep -A 5 "container:" "$yaml_file" | grep "path:" | head -n1 | sed -e "s/.*path: *//;s/['\"]//g" | tr -d ' ')
-        if [ ! -z "$container_path" ]; then
-            if [[ "$container_path" == ./* ]]; then
-                # Relative path
-                CONTAINER_PATH="${SCRIPT_DIR}/${container_path#./}"
-            else
-                # Absolute path or just filename
-                CONTAINER_PATH="$container_path"
-            fi
-            
-            # Extract container name from path if it's a .sif file
-            if [[ "$CONTAINER_PATH" == *.sif ]]; then
-                CONTAINER_NAME=$(basename "$CONTAINER_PATH" .sif)
-            fi
-            
-            msg "$BLUE" "Using container: $CONTAINER_PATH" "📦"
+        # Container name
+        local container_name=$(grep -A 5 "container:" "$yaml_file" | grep "name:" | head -n1 | sed -e "s/.*name: *//;s/['\"]//g" | tr -d ' ')
+        if [ ! -z "$container_name" ]; then
+            CONTAINER_NAME="$container_name"
+            CONTAINER_PATH="${SCRIPT_DIR}/apptainer-images/${CONTAINER_NAME}.sif"
+            msg "$BLUE" "Using container name: $CONTAINER_NAME" "📦"
         fi
         
         # Command path
         local cmd_path=$(grep -A 5 "container:" "$yaml_file" | grep "command:" | head -n1 | sed -e "s/.*command: *//;s/['\"]//g" | tr -d ' ')
         if [ ! -z "$cmd_path" ]; then
-            CONTAINER_CMD_PATH="$cmd_path"
-            msg "$BLUE" "Using custom command: $CONTAINER_CMD_PATH" "🔧"
+            CONTAINER_CMD="$cmd_path"
+            msg "$BLUE" "Using container command: $CONTAINER_CMD" "🔧"
         fi
     fi
     
-    # Operation
-    local operation=$(grep "operation:" "$yaml_file" | head -n1 | sed -e "s/.*operation: *//;s/['\"]//g" | tr -d ' ')
-    if [ ! -z "$operation" ]; then
-        OPERATION="$operation"
-        msg "$BLUE" "Operation: $OPERATION" "🚀"
-    fi
-    
-    # GPU setting
-    local gpu_setting=$(grep "use_gpu:" "$yaml_file" | head -n1 | sed -e "s/.*use_gpu: *//;s/['\"]//g" | tr -d ' ')
-    if [ ! -z "$gpu_setting" ]; then
-        if [ "$gpu_setting" == "false" ]; then
-            USE_GPU=false
-            msg "$BLUE" "GPU support: disabled" "🔄"
+    # GPU setting from validate section
+    if grep -q "validate:" "$yaml_file"; then
+        local gpu_setting=$(grep -A 10 "validate:" "$yaml_file" | grep "gpu:" | head -n1 | sed -e "s/.*gpu: *//;s/['\"]//g" | tr -d ' ')
+        if [ ! -z "$gpu_setting" ]; then
+            if [ "$gpu_setting" == "false" ]; then
+                USE_GPU=false
+                msg "$BLUE" "GPU support: disabled" "🔄"
+            else
+                USE_GPU=true
+                msg "$BLUE" "GPU support: enabled" "🔄"
+            fi
+        fi
+        
+        # Result file
+        local result_file=$(grep -A 10 "validate:" "$yaml_file" | grep "result_file:" | head -n1 | sed -e "s/.*result_file: *//;s/['\"]//g" | tr -d ' ')
+        if [ ! -z "$result_file" ]; then
+            RESULT_FILE="${SCRIPT_DIR}/${result_file}"
+            msg "$BLUE" "Using result file: $RESULT_FILE" "📊"
         fi
     fi
     
     # Directories
     if grep -q "directories:" "$yaml_file"; then
         # Input directory
-        local input_dir=$(grep -A 5 "directories:" "$yaml_file" | grep "input:" | head -n1 | sed -e "s/.*input: *//;s/['\"]//g" | tr -d ' ')
+        local input_dir=$(grep -A 10 "directories:" "$yaml_file" | grep "input:" | head -n1 | sed -e "s/.*input: *//;s/['\"]//g" | tr -d ' ')
         if [ ! -z "$input_dir" ]; then
             if [[ "$input_dir" == /* ]]; then
                 # Absolute path
@@ -112,7 +106,7 @@ parse_yaml() {
         fi
         
         # Output directory
-        local output_dir=$(grep -A 5 "directories:" "$yaml_file" | grep "output:" | head -n1 | sed -e "s/.*output: *//;s/['\"]//g" | tr -d ' ')
+        local output_dir=$(grep -A 10 "directories:" "$yaml_file" | grep "output:" | head -n1 | sed -e "s/.*output: *//;s/['\"]//g" | tr -d ' ')
         if [ ! -z "$output_dir" ]; then
             if [[ "$output_dir" == /* ]]; then
                 # Absolute path
@@ -123,6 +117,19 @@ parse_yaml() {
             fi
             msg "$BLUE" "Output directory: $OUTPUT_DIR" "📁"
         fi
+        
+        # Containers directory
+        local containers_dir=$(grep -A 10 "directories:" "$yaml_file" | grep "containers:" | head -n1 | sed -e "s/.*containers: *//;s/['\"]//g" | tr -d ' ')
+        if [ ! -z "$containers_dir" ]; then
+            if [[ "$containers_dir" == /* ]]; then
+                # Absolute path for container
+                CONTAINER_PATH="${containers_dir}/${CONTAINER_NAME}.sif"
+            else
+                # Relative path for container
+                CONTAINER_PATH="${SCRIPT_DIR}/${containers_dir}/${CONTAINER_NAME}.sif"
+            fi
+            msg "$BLUE" "Container path: $CONTAINER_PATH" "📁"
+        fi
     fi
 }
 
@@ -132,12 +139,9 @@ show_help() {
   echo "Options:"
   echo "  -n, --name NAME      Container name (default: fomo25-container)"
   echo "  -p, --path PATH      Container path (overrides name)"
-  echo "  -t, --test           Test an existing container"
-  echo "  -r, --run            Run inference on a container"
-  echo "  -v, --validate       Run full validation (test+run+metrics)"
   echo "  -i, --input DIR      Input directory (default: ./test/input)"
   echo "  -o, --output DIR     Output directory (default: ./test/output)"
-  echo "  -c, --config FILE    Config file path (default: ./config.yml)"
+  echo "  -c, --config FILE    Config file path (default: ./container_config.yml)"
   echo "  --no-gpu             Disable GPU support"
   echo "  --result FILE        Specify output JSON file for results"
   echo "  --cmd PATH           Custom Apptainer/Singularity command path"
@@ -172,18 +176,6 @@ parse_args() {
       -p|--path)
         CONTAINER_PATH="$2"
         shift 2
-        ;;
-      -t|--test)
-        OPERATION="test"
-        shift
-        ;;
-      -r|--run)
-        OPERATION="run"
-        shift
-        ;;
-      -v|--validate)
-        OPERATION="validate"
-        shift
         ;;
       -i|--input)
         INPUT_DIR="$2"
@@ -446,6 +438,9 @@ run_inference() {
       
       msg "$BLUE" "[$count/$input_files] Processing $filename..." "⏳"
       
+      # Create output directory if needed
+      mkdir -p "$OUTPUT_DIR"
+      
       # Run inference on this file using the instance
       "$CONTAINER_CMD" exec instance://"$INSTANCE_NAME" \
         python /app/predict.py --input "/input/$filename" --output "/output/$filename"
@@ -578,24 +573,8 @@ main() {
   # Check environment
   check_env
   
-  # Perform requested operation
-  case $OPERATION in
-    test)
-      test_container
-      save_results
-      ;;
-    run)
-      run_inference
-      save_results
-      ;;
-    validate)
-      run_validation
-      ;;
-    *)
-      msg "$RED" "Unknown operation: $OPERATION" "❌"
-      exit 1
-      ;;
-  esac
+  # Always run validation (operation parameter removed)
+  run_validation
   
   exit $?
 }

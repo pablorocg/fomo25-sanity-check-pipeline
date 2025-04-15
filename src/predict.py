@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """
-Prediction script for medical image segmentation with strict validation.
-Generates standardized outputs for segmentation challenges.
+Prediction script for medical image segmentation.
+Simple version: 1 file input, 1 file output.
 """
 
 import argparse
@@ -9,6 +9,7 @@ import os
 import sys
 import logging
 import numpy as np
+import nibabel as nib
 
 # Add the current directory to the Python path
 app_dir = os.path.dirname(os.path.abspath(__file__))
@@ -29,7 +30,7 @@ from inference.pipeline import LightningInferencePipeline
 def parse_args():
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(
-        description="Medical Image Segmentation Prediction Pipeline",
+        description="Medical Image Segmentation Prediction",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
 
@@ -38,7 +39,7 @@ def parse_args():
         "-i",
         type=str,
         required=True,
-        help="Path to input NIfTI file or directory",
+        help="Path to input NIfTI file",
     )
 
     parser.add_argument(
@@ -54,7 +55,7 @@ def parse_args():
         "-o",
         type=str,
         required=True,
-        help="Path to save output predictions",
+        help="Path to save output prediction file",
     )
 
     parser.add_argument(
@@ -99,9 +100,9 @@ def parse_args():
 
 def validate_args(args):
     """Validate command line arguments."""
-    # Validate input path
-    if not os.path.exists(args.input):
-        logger.error(f"Input path does not exist: {args.input}")
+    # Validate input file
+    if not os.path.isfile(args.input):
+        logger.error(f"Input must be a file: {args.input}")
         return False
 
     # Validate model path if provided
@@ -114,16 +115,11 @@ def validate_args(args):
         logger.error(f"Threshold must be between 0 and 1: {args.threshold}")
         return False
 
-    # Validate channels
-    if args.channels < 1:
-        logger.error(f"Number of channels must be positive: {args.channels}")
-        return False
-
     # Ensure output directory parent exists
     output_parent = os.path.dirname(os.path.abspath(args.output))
-    if not os.path.exists(output_parent):
-        logger.error(f"Output parent directory does not exist: {output_parent}")
-        return False
+    if output_parent and not os.path.exists(output_parent):
+        os.makedirs(output_parent, exist_ok=True)
+        logger.info(f"Created output directory: {output_parent}")
 
     return True
 
@@ -163,25 +159,28 @@ def main():
         logger.info(f"Running inference on {args.input}...")
         predictions = pipeline.predict(args.input)
 
-        if not predictions:
-            logger.error("No predictions generated")
+        if not predictions or len(predictions) == 0:
+            logger.error("No prediction generated")
             return 1
 
-        # Create output directory
-        os.makedirs(args.output, exist_ok=True)
-
-        # Save predictions
-        saved_paths = pipeline.save_predictions(
-            predictions,
-            args.output,
-            args.input if os.path.isdir(args.input) else os.path.dirname(args.input),
+        # Get the prediction (there should be only one)
+        prediction = next(iter(predictions.values()))
+        
+        # Get reference metadata from input file
+        reference_img = nib.load(args.input)
+        
+        # Create output image with reference metadata
+        output_img = nib.Nifti1Image(
+            prediction.astype(output_dtype),
+            reference_img.affine,
+            reference_img.header
         )
-
-        if not saved_paths:
-            logger.error("No output files saved")
-            return 1
-
-        logger.info(f"Saved {len(saved_paths)} predictions to {args.output}")
+        output_img.set_data_dtype(output_dtype)
+        
+        # Save the file
+        nib.save(output_img, args.output)
+        logger.info(f"Saved prediction to {args.output}")
+        
         logger.info("Inference completed successfully")
         return 0
 

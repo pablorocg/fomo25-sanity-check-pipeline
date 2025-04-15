@@ -322,7 +322,7 @@ class LightningInferencePipeline:
     
     def save_predictions(self, 
                          predictions: Dict[str, np.ndarray],
-                         output_dir: str,
+                         output_path: str,
                          input_dir: Optional[str] = None) -> List[str]:
         """
         Save predictions as NIfTI files with strict metadata handling.
@@ -335,16 +335,16 @@ class LightningInferencePipeline:
         Returns:
             List of saved file paths
         """
-        self.logger.info(f"Saving {len(predictions)} predictions to {output_dir}")
+        self.logger.info(f"Saving {len(predictions)} predictions to {output_path}")
         
         # Ensure output directory exists
-        os.makedirs(output_dir, exist_ok=True)
+        os.makedirs(output_path, exist_ok=True)
         
         # Save each prediction
         saved_paths = []
         for filename, prediction in predictions.items():
             # Construct output path
-            output_path = os.path.join(output_dir, filename)
+            # output_path = os.path.join(output_dir, filename)
             
             # Find reference file for metadata
             reference_path = None
@@ -385,7 +385,7 @@ class LightningInferencePipeline:
                 
                 # Save the file
                 nib.save(output_img, output_path)
-                saved_paths.append(output_path)
+                # saved_paths.append(output_path)
                 self.logger.info(f"Saved {filename} to {output_path}")
                 
             except Exception as e:
