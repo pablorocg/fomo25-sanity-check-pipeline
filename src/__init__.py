@@ -15,9 +15,9 @@ from . import inference
 
 # You can also import specific classes/functions to expose at the top level
 # This makes them directly importable from your package
-from .inference.pipeline import LightningInferencePipeline
-from .models.model import MedicalSegmentationModel
-from .data.data_module import MedicalImageDataModule
+from .pipeline import LightningInferencePipeline
+from .model import MedicalSegmentationModel
+from .data_module import MedicalImageDataModule
 
 __all__ = [
     "data",

@@ -11,9 +11,9 @@ import pytorch_lightning as pl
 import nibabel as nib
 
 # Import from project
-from models.model import MedicalSegmentationModel
-from data.data_module import MedicalImageDataModule
-from utils.nifti_utils import (
+from src.model import MedicalSegmentationModel
+from src.data_module import MedicalImageDataModule
+from src.nifti_utils import (
     save_batch_nifti, load_nifti, get_nifti_metadata,
     standardize_orientation, resample_to_reference
 )

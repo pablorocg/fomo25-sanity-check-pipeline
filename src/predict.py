@@ -24,7 +24,7 @@ logging.basicConfig(
 logger = logging.getLogger("predict")
 
 # Import inference pipeline
-from inference.pipeline import LightningInferencePipeline
+from src.pipeline import LightningInferencePipeline
 
 
 def parse_args():
