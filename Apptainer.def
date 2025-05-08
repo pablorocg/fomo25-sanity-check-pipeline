@@ -25,11 +25,6 @@ From: pytorch/pytorch:2.6.0-cuda12.6-cudnn9-runtime
         pip install --no-cache-dir -r /app/requirements.txt
     fi
 
-    # Install package if setup.py exists
-    if [ -f "/app/setup.py" ]; then
-        pip install -e /app
-    fi
-
     # Create non-root user for better security
     groupadd -r user && useradd -m --no-log-init -r -g user user
     chown -R user:user /input /output /results /app
@@ -37,8 +32,8 @@ From: pytorch/pytorch:2.6.0-cuda12.6-cudnn9-runtime
     # Make Python scripts executable
     find /app -name "*.py" -exec chmod +x {} \;
 
-# %runscript
-#     exec python /app/predict.py --input /input --output /output "$@"
+%runscript
+    exec python /app/predict.py "$@"
 
 %test
     python -c "import sys; print(f'Python {sys.version}')"

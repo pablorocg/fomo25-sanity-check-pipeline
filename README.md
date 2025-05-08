@@ -279,7 +279,7 @@ validate:
 Build your container using the Apptainer.def file you prepared in step 1:
 
 ```bash
-apptainer build your-container.sif Apptainer.def
+apptainer build /path/to/save/your/container.sif Apptainer.def
 ```
 
 This command creates a `.sif` container file that encapsulates your model and all its dependencies.

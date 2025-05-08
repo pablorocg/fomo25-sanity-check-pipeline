@@ -1,10 +1,2 @@
-monai
-torch
-torchvision
 nibabel
 numpy
-pandas
-tqdm
-torchinfo
-scikit-image
-pytorch-lightning

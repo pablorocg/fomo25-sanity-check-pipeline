@@ -1,6 +1,5 @@
 #!/bin/bash
-# FOMO25 Container Processor
-# Processes neuroimaging files using Apptainer containers
+# FOMO25 Container Validation Tool
 
 # Color codes for messages
 GREEN='\033[0;32m'
