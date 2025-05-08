@@ -6,17 +6,29 @@ Please note: This repository will be continually refined, so check back occasion
 
 ## Table of Contents
 - [Overview](#overview)
-- [How to Make a Correct Submission](#how-to-make-a-correct-submission)
-  - [1. Required Files](#1-required-files)
-    - [predict.py](#predictpy)
-    - [requirements.txt](#requirementstxt)
-    - [Apptainer.def](#apptainerdef)
-  - [2. Install Apptainer](#2-install-apptainer)
-  - [3. Integrate Validation with Your Project](#integrating-validation-with-your-project)
-  - [4. Build Your Container](#4-build-your-container)
-  - [5. Run Validation](#5-run-validation)
+- [Validation Workflow](#validation-workflow)
+- [Prerequisites](#prerequisites)
+  - [Install Apptainer](#install-apptainer)
+  - [Install Required Python Libraries](#install-required-python-libraries)
+- [1. Prepare Required Files](#1-prepare-required-files)
+  - [predict.py](#predictpy)
+  - [requirements.txt](#requirementstxt)
+  - [Apptainer.def](#apptainerdef)
+  - [Container Directory Structure](#container-directory-structure)
+- [2. Integrate Validation with Your Project](#2-integrate-validation-with-your-project)
+  - [Validation Components](#validation-components)
+  - [Project Directory Structure](#project-directory-structure)
+  - [Setup Validation Environment](#setup-validation-environment)
+- [3. Build Your Container](#3-build-your-container)
+- [4. Run Validation](#4-run-validation)
+  - [Validation Process](#validation-process)
+  - [Interpreting Validation Results](#interpreting-validation-results)
+- [5. Post-Validation Steps](#5-post-validation-steps)
+- [Troubleshooting Guide](#troubleshooting-guide)
+<!-- - [Submission Checklist](#submission-checklist) -->
 - [FAQ](#faq)
-
+<!-- - [Glossary](#glossary) -->
+- [Getting Help](#getting-help)
 
 ## Overview
 
@@ -28,11 +40,10 @@ The validation specifically checks:
 
 - Container structure and the presence of required files.
 - Execution permissions and script functionality.
-- Proper handling of input/output paths and NIfTI medical image files.
+- Proper handling of input/output paths and NIfTI medical image files (a format commonly used for storing neuroimaging data).
 - Container's ability to run in the expected environment.
 
 By running this validation locally, you can identify and fix technical issues early, ensuring your submission can be properly evaluated on its scientific merits rather than being rejected due to implementation problems.
-
 
 ## Validation Workflow
 
@@ -45,51 +56,44 @@ The validation process follows this general workflow:
 5. If validation fails, you debug and fix issues
 6. When validation passes, your container is ready for submission
 
-
 <div align="center">
   <img src="imgs/workflow-diagram-v2.svg" width="70%" alt="FOMO25 Container Validation Workflow">
 </div>
 
-## Install Apptainer
+## Prerequisites
 
-you need to install Apptainer on your computer (formerly Singularity) to build and run your container. Apptainer primarily supports Linux environments (Ubuntu, Debian, etc). If using MacOS or Windows, you'll need to use virtualization tools (Docker, Virtual Machines or wsl2). You can find the installation instructions in the [official Apptainer documentation](https://apptainer.org/docs/admin/main/installation.html).
+Before beginning the container validation process, ensure you have installed all necessary tools and dependencies.
 
+### Install Apptainer
+
+You need to install Apptainer (formerly Singularity) to build and run your container. Apptainer primarily supports Linux environments (Ubuntu, Debian, etc). If using MacOS or Windows, you'll need to use virtualization tools (Docker, Virtual Machines, or WSL2).
+
+Installation instructions by platform:
 - [Install in Linux (Ubuntu, Debian, Fedora, ...)](https://apptainer.org/docs/admin/main/installation.html#install-from-pre-built-packages)
 - [Install in MacOS](https://apptainer.org/docs/admin/main/installation.html#mac)
 - [Install in Windows](https://apptainer.org/docs/admin/main/installation.html#windows)
 
-You can verify your Apptainer installation with the following command:
+Verify your Apptainer installation with:
 
 ```bash
 apptainer --version
 ```
 
+### Install Required Python Libraries
 
+You need these Python libraries in your local environment for generating synthetic test data and calculating metrics (these are used by the validation scripts outside the container):
 
-## How to Make a Correct Submission (Step-by-Step)
-
-### 1. Required Files
-
-You will need the following files:
-- A `predict.py` to make inference
-- A `requirements.txt` with the necessary dependencies
-- An `Apptainer.def` file
-
-Additionally, you must have the following libraries installed in your environment to generate synthetic data that will be used to test your model and to calculate metrics on the outputs after inference (outside the container).
-
-```
-nibabel
-numpy
-json
-pandas
-scikit-learn
-tqdm
-concurrent
+```bash
+pip install nibabel numpy pandas scikit-learn tqdm
 ```
 
-#### predict.py
+## 1. Prepare Required Files
 
-`predict.py` handles inference operations with your trained model. This script processes NIfTI files and it has to preserve the original image metadata in the output.
+You must prepare the following files for your submission (all these files are **mandatory**):
+
+### predict.py
+
+This script handles inference operations with your trained model. It processes NIfTI files and must preserve the original image metadata in the output.
 
 **Command Structure**
 
@@ -97,7 +101,7 @@ The predict.py file must accept the following arguments:
 - `--input`: Path to the input file for inference
 - `--output`: Destination path for saving results
 
-Here is an example of usage: 
+Example usage: 
 
 ```bash
 python predict.py --input /path/to/input/file.nii.gz --output /path/to/output/file.nii.gz
@@ -137,24 +141,24 @@ if __name__ == "__main__":
     main()
 ```
 
-#### requirements.txt
+### requirements.txt
 
-The `requirements.txt` file lists all necessary Python packages required for your model inference, ensuring consistent environment configuration.
+The `requirements.txt` file lists all Python packages required for your model inference, ensuring consistent environment configuration.
 
-**Implementation Template**
+**Implementation Example**
 
 ```
 torch
 nibabel
 numpy
 ```
-Note: This is an example. Put your own dependencies here.
+Note: This is just an example. Include your own specific dependencies here.
 
-#### Apptainer.def
+### Apptainer.def
 
 The `Apptainer.def` file contains instructions for building your container environment, ensuring reproducibility and portability.
 
-**Implementation Template**
+**Implementation Example**
 ```apptainer
 Bootstrap: docker
 From: pytorch/pytorch:2.0.0-cuda11.7-cudnn8-runtime
@@ -178,22 +182,38 @@ From: pytorch/pytorch:2.0.0-cuda11.7-cudnn8-runtime
     exec python /app/predict.py "$@"
 ```
 
+### Container Directory Structure
 
+Your container **must** have the following internal structure:
 
-### 4. Integrating Validation with Your Project
+```
+/
+├── app/              # Your application code
+│   ├── predict.py    # Main inference script (REQUIRED)
+│   └── ...           # Other necessary code
+├── input/            # Mounted input directory (DO NOT include in container)
+├── output/           # Mounted output directory (DO NOT include in container)
+└── ...               # Other system files
+```
 
-#### Validation Components
-The validation tool includes the following key components that will be used to test your container:
+Important notes:
+- Your predict.py file must be located at `/app/predict.py`
+- The input and output directories are mounted at runtime and should not be included in your container
+
+## 2. Integrate Validation with Your Project
+
+### Validation Components
+
+The validation tool includes these key components that will test your container:
 
 - `validate_container.sh`: Main validation script that orchestrates the testing process
 - `compute_metrics.py`: Calculates performance metrics on your model's output
 - `test_data_generator.py`: Creates synthetic NIfTI test images for validation
 
-You don't need to modify these files, but understanding their purpose helps troubleshoot any validation issues.
+You don't need to modify these files, but understanding their purpose helps troubleshoot validation issues.
 
+### Project Directory Structure
 
-
-#### Directory Structure
 Set up your project with the following recommended structure to easily integrate the validation tool:
 
 ```
@@ -214,7 +234,7 @@ your-project/
 └── container_config.yml  # Validation configuration
 ```
 
-#### Installation Steps
+### Setup Validation Environment
 
 1. **Clone the validation repository into your project**
 
@@ -258,111 +278,83 @@ validate:
   result_file: "validation_result.json"  # Report output location
 ```
 
+## 3. Build Your Container
 
+Build your container using the Apptainer.def file you prepared in step 1:
 
-### 2. Build Your Container
-Now you need to build the container (my-container.sif) using Apptainer.
-The container is defined in the Apptainer.def file.
-
-```apptainer
-Bootstrap: docker
-From: pytorch/pytorch:2.0.0-cuda11.7-cudnn8-runtime
-
-%files
-    # Here files are copied from your computer to the container
-    src /app (copy the contents of the src directory to the /app directory)
-    requirements.txt /app/requirements.txt (copy requirements file)
-
-%post
-    apt-get update && apt-get install -y --no-install-recommends \
-        python3-pip \
-        python3-dev \
-        && rm -rf /var/lib/apt/lists/*
-    
-    # Install dependencies specified in the requirements.txt file
-    pip install --no-cache-dir -r /app/requirements.txt
-    
-    # Make predict.py executable
-    chmod +x /app/predict.py
-
-%runscript
-    # When launching the container, execute the /app/predict.py file
-    exec python /app/predict.py "$@"
-```
-
-
-You must have the following folder structure inside the container. Your predict.py file must be located at the path /app/predict.py. You should also have two empty directories: input and output. The input directory will be mounted with the input data folder, and the output directory will store the inference results.  
-
-```
-/
-├── app/              # Your application code
-│   ├── predict.py    # Main inference script (REQUIRED)
-│   └── ...           # Other necessary code
-├── input/            # Mounted input directory (DO NOT include in container)
-├── output/           # Mounted output directory (DO NOT include in container)
-└── ...               # Other system files
-```
-
-
-To build the container, use the command:
 ```bash
 apptainer build your-container.sif Apptainer.def
 ```
-Required dependencies to consider:
 
-nibabel (for medical image handling)
-numpy (for array operations)
-Your deep learning framework (PyTorch, TensorFlow, etc.)
-Any additional packages your solution needs
+This command creates a `.sif` container file that encapsulates your model and all its dependencies.
 
+## 4. Run Validation
 
-### 3. Run Validation
-(Aqui explicar que hay que tener la carpeta validation (con los archivos compute_metrics para calcular metricas sobre los datos de inferenciia y el fichero test_data generator que genera data sintetica que es utilizada a modo de prueba para hacer inferencia), el archivo de container_config.yml y )
-Execute the validation script with your container:
+### Validation Process
 
-**Configuration Options**
+Once your container is built, run the validation tool to ensure it will work correctly in the evaluation environment:
 
-The `container_config.yml` file allows customizing the validation process:
-```yaml
-# Container settings
-container:
-  name: "your-container"   # Container name 
-  command: "apptainer"     # Container command
-
-# Directory paths
-directories:
-  input: "test/input"      # Input data location
-  output: "test/output"    # Results location
-  containers: "apptainer-images"  # Container storage location
-
-# Validation settings
-validate:
-  gpu: true                # Use GPU if available
-  generate_data: true      # Create synthetic test data
-  compute_metrics: true    # Calculate performance metrics
-  save_report: true        # Generate validation report
-  result_file: "validation_result.json"  # Report output file
-```
 ```bash
-./validate_container.sh --path /path/to/your-container.sif
+./validation/validate_container.sh --path /path/to/your-container.sif
 ```
 
-For custom configuration:
+Or if you've configured a custom `container_config.yml`:
+
 ```bash
-./validate_container.sh --config container_config.yml
+./validation/validate_container.sh --config container_config.yml
 ```
 
-**Common Validation Errors**:
-- Missing predict.py: Ensure the script exists at `/app/predict.py`
-- Permission denied: Make sure predict.py is executable
-- Dependency errors: Check that all required packages are installed
-- Input/output errors: Verify your script handles specified paths correctly
+The validation process will:
+1. Generate synthetic NIfTI test data (if configured)
+2. Run your container against this test data
+3. Evaluate the output format and basic functionality
+4. Generate a validation report in `validation_result.json`
 
-The validation generates a report in `validation_result.json` with detailed information.
+### Interpreting Validation Results
 
+The validation tool produces a detailed report with information about:
+- Container structure verification
+- Execution success/failure
+- Output format correctness
+- Basic performance metrics
 
+Review this report carefully to identify any issues that need to be addressed.
 
+## 5. Post-Validation Steps
 
+Once your container passes validation:
+
+1. **Review the validation report** one final time to ensure there are no warnings or issues
+2. **Test with representative data** if possible, to confirm your model performs as expected
+3. **Submit your container** to the FOMO25 Challenge platform following the submission guidelines on the main challenge website
+4. **Track your submission status** on the challenge platform for any feedback or issues
+
+## Troubleshooting Guide
+
+Common validation errors and their solutions:
+
+| Error | Possible Cause | Solution |
+|-------|---------------|----------|
+| Missing predict.py | Script not at the correct path | Ensure predict.py is at `/app/predict.py` in the container |
+| Permission denied | Script not executable | Add `chmod +x /app/predict.py` to your Apptainer.def %post section |
+| Dependency errors | Missing packages | Check that all required packages are in requirements.txt and properly installed |
+| Input/output errors | Incorrect path handling | Verify your script correctly uses the paths provided via command-line arguments |
+| Memory errors | Model too large for available resources | Optimize your model or check GPU memory usage |
+| NIfTI format errors | Metadata not preserved | Ensure you're using the input image's affine and header for the output |
+
+For more complex issues, check the validation logs and container build logs for detailed error messages.
+
+<!-- ## Submission Checklist
+
+Before submitting to the challenge platform, verify that:
+
+- [ ] Container includes all required files (predict.py, etc.)
+- [ ] predict.py accepts --input and --output parameters
+- [ ] Container successfully builds without errors
+- [ ] Validation tool runs successfully and passes all checks
+- [ ] Output preserves NIfTI metadata from input files
+- [ ] Container file size is within platform limits (if specified)
+- [ ] All dependencies are properly included in the container -->
 
 ## FAQ
 
@@ -377,3 +369,28 @@ A: The validation script will test GPU support if available. Include GPU-compati
 
 **Q: Can I test with my own data?**  
 A: Yes, place your test data in the input directory defined in `container_config.yml`.
+
+**Q: How large can my container be?**  
+A: While there's no strict limit during validation, smaller containers (under 5GB) are recommended for the actual submission.
+
+**Q: What if my model requires significant computational resources?**  
+A: Optimize your model where possible. The evaluation environment has constraints that will be specified on the main challenge website.
+
+<!-- ## Glossary
+
+- **Apptainer**: A container platform designed for scientific and high-performance computing (formerly called Singularity)
+- **Container**: A lightweight, standalone executable package that includes everything needed to run software
+- **NIfTI**: Neuroimaging Informatics Technology Initiative format, a file format commonly used for storing brain imaging data
+- **SIF file**: Singularity/Apptainer Image Format, the container file created by Apptainer
+- **Affine**: A matrix that defines the position and orientation of an image in 3D space
+- **Metadata**: Additional information stored with an image file, such as spatial resolution and orientation -->
+
+## Getting Help
+
+If you encounter issues not covered in this documentation:
+
+- Check the [main FOMO25 Challenge website](https://fomo25-challenge.org) for additional resources
+- Post questions to the [Challenge Forum/Discussion Board]
+- Contact the challenge organizers at [contact email]
+
+For Apptainer-specific issues, refer to the [official Apptainer documentation](https://apptainer.org/docs/).
