@@ -93,11 +93,7 @@ You must prepare the following files for your submission (all these files are **
 
 ### predict.py
 
-This script handles inference operations with your trained model. It processes NIfTI files and must preserve the original image metadata in the output.
-
-**Command Structure**
-
-The predict.py file must accept the following arguments:
+This script handles inference operations with your trained model. It processes NIfTI files and must preserve the original image metadata in the output. The predict.py file must accept the following arguments:
 - `--input`: Path to the input file for inference
 - `--output`: Destination path for saving results
 
@@ -239,7 +235,7 @@ your-project/
 1. **Clone the validation repository into your project**
 
 ```bash 
-git clone https://github.com/FOMO25-challenge/container-validation.git validation
+git clone https://github.com/pablorocg/fomo25-sanity-check-pipeline.git validation
 ```
 
 2. **Copy configuration template**
@@ -255,7 +251,7 @@ mkdir -p test/input test/output
 ```
 
 4. **Configure validation settings**
-Edit container_config.yml to match your project's specific needs:
+Edit `container_config.yml` to match your project's specific needs:
 
 ```yaml
 # Container settings
@@ -370,27 +366,13 @@ A: The validation script will test GPU support if available. Include GPU-compati
 **Q: Can I test with my own data?**  
 A: Yes, place your test data in the input directory defined in `container_config.yml`.
 
-**Q: How large can my container be?**  
-A: While there's no strict limit during validation, smaller containers (under 5GB) are recommended for the actual submission.
-
-**Q: What if my model requires significant computational resources?**  
-A: Optimize your model where possible. The evaluation environment has constraints that will be specified on the main challenge website.
-
-<!-- ## Glossary
-
-- **Apptainer**: A container platform designed for scientific and high-performance computing (formerly called Singularity)
-- **Container**: A lightweight, standalone executable package that includes everything needed to run software
-- **NIfTI**: Neuroimaging Informatics Technology Initiative format, a file format commonly used for storing brain imaging data
-- **SIF file**: Singularity/Apptainer Image Format, the container file created by Apptainer
-- **Affine**: A matrix that defines the position and orientation of an image in 3D space
-- **Metadata**: Additional information stored with an image file, such as spatial resolution and orientation -->
 
 ## Getting Help
 
 If you encounter issues not covered in this documentation:
 
-- Check the [main FOMO25 Challenge website](https://fomo25-challenge.org) for additional resources
-- Post questions to the [Challenge Forum/Discussion Board]
-- Contact the challenge organizers at [contact email]
+- Check the [main FOMO25 Challenge website](https://fomo25.github.io/) for additional resources
+- Post questions by [creating an issue](https://github.com/pablorocg/fomo25-sanity-check-pipeline/issues/new) in the repository
+- Contact the challenge organizers at fomo25@di.ku.dk
 
-For Apptainer-specific issues, refer to the [official Apptainer documentation](https://apptainer.org/docs/).
+For Apptainer-specific issues, refer to the [official Apptainer documentation](https://apptainer.org/docs/user/latest/).
