@@ -46,8 +46,9 @@ The validation process follows this general workflow:
 6. When validation passes, your container is ready for submission
 
 
-<img src="imgs/workflow-diagram-v2.svg" width="500" alt="FOMO25 Container Validation Workflow">
-
+<div align="center">
+  <img src="imgs/workflow-diagram-v2.svg" width="70%" alt="FOMO25 Container Validation Workflow">
+</div>
 
 ## Install Apptainer
 
