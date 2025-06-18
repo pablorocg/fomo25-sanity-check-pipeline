@@ -67,14 +67,12 @@ def main():
     # Get age prediction
     predicted_age = predict_age(args)
     
-    # Create output CSV with required format
-    df = pd.DataFrame({
-        'header': ['subject'],
-        'value': [predicted_age]
-    })
+    # Create output TXT file
+    output_path = Path(args.output)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
     
-    # Save to CSV
-    df.to_csv(args.output, index=False)
+    with open(output_path, "w") as f:
+        f.write(f"{predicted_age:.2f}\n")
     
     return 0
 

@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 import argparse
-import pandas as pd
 from pathlib import Path
 
 def parse_args():
@@ -15,7 +14,7 @@ def parse_args():
     parser.add_argument("--swi", type=str, help="Path to SWI image (optional)")
     
     # Output path for predictions
-    parser.add_argument("--output", type=str, required=True, help="Path to save output CSV")
+    parser.add_argument("--output", type=str, required=True, help="Path to save output .txt file")
     
     return parser.parse_args()
 
@@ -53,7 +52,7 @@ def predict(args):
     #########################################################################
     
     # Dummy probability - REPLACE THIS WITH YOUR ACTUAL PREDICTION
-    probability = 0.5
+    probability = 0.75  # Example probability, should be between 0 and 1
     
     return probability
 
@@ -67,14 +66,13 @@ def main():
     # Get prediction probability
     probability = predict(args)
     
-    # Create output CSV with required format
-    df = pd.DataFrame({
-        'header': ['subject'],
-        'prob_class_1': [probability]
-    })
-    
-    # Save to CSV
-    df.to_csv(args.output, index=False)
+    # Save probability in a text file called <subject_id>.txt
+    subject_id = Path(args.output).stem  # Extract subject ID from output path
+    output_file = Path(args.output).parent / f"{subject_id}.txt"
+    with open(output_file, 'w') as f:
+        f.write(f"{probability:.3f}")
+
+   
     
     return 0
 

@@ -56,4 +56,4 @@ From: python:3.11-slim
             --adc /input/adc.nii.gz \
             --dwi_b1000 /input/dwi.nii.gz \
             --t2s /input/t2s.nii.gz \
-            --output /output/prediction.csv`
+            --output /output/sub_id.txt`

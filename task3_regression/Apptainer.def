@@ -53,4 +53,4 @@ From: python:3.11-slim
             brain_age.sif \
             --t1 /input/t1.nii.gz \
             --t2 /input/t2.nii.gz \
-            --output /output/age_prediction.csv`
+            --output /output/age_prediction.txt`

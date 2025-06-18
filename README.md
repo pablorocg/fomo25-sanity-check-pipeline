@@ -25,9 +25,7 @@ Please note: This repository will be continually refined, so check back occasion
   - [Interpreting Validation Results](#interpreting-validation-results)
 - [5. Post-Validation Steps](#5-post-validation-steps)
 - [Troubleshooting Guide](#troubleshooting-guide)
-<!-- - [Submission Checklist](#submission-checklist) -->
 - [FAQ](#faq)
-<!-- - [Glossary](#glossary) -->
 - [Getting Help](#getting-help)
 
 ## Overview
